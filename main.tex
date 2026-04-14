@@ -38,10 +38,10 @@
 \begin{abstract}
   While Large Vision-Language Models (LVLMs) demonstrate remarkable capabilities, they remain highly susceptible to embedded societal biases. Existing bias evaluation protocols predominantly rely on static datasets, which provide only a superficial assessment, as their fixed test cases cannot adaptively evolve to measure the true depth and limits of model vulnerabilities.
   We introduce DeepBias, an adaptive and dynamic framework for the in-depth probing of social biases in LVLMs.
-  Our approach operates through a dynamic ``generation-probing-evolution'' loop.
+  Our approach operates through a dynamic ``generation-evolution-probing'' loop.
   First, a generative Proposer synthesizes test cases to evaluate the target model.
-  Second, based on the model's responses, a dual-agent module adaptively deepens the evaluation data: a DeepMiner agent that performs deep exploration of known biases, while a Rewriter agent that performs adversarial modifications on secure samples to uncover latent biases.
-  Finally, we optimize the Proposer based on the target model's responses to these queries, directing it to specifically generate challenging and targeted samples that successfully trigger the model's bias.
+  Second, we optimize the Proposer via Direct Preference Optimization based on the target model's initial responses, directing it to generate increasingly challenging and targeted samples.
+  Third, an autonomous DeepAgent conducts multi-turn sequential probing on each sample: at each turn, it analyzes the full dialogue history and either deepens exposed biases or adversarially rewrites the query to bypass safety filters, progressively uncovering latent biases.
   Furthermore, by employing 6 diverse, state-of-the-art LVLMs as anchor models within this optimization loop, we iteratively synthesize a novel, highly challenging benchmark dataset. Comprehensive experiments demonstrate that DeepBias successfully exposes deep societal biases, establishing a scalable and evolutionary paradigm for robust LVLM safety evaluation.
 \end{abstract}
 
@@ -74,13 +74,11 @@ To overcome these limitations, we advocate for a transition from static dataset 
 As shown in the bottom panel of Fig.\ref{fig:teaser}, unlike static approaches, DeepBias dynamically generates new text queries based on the model's feedback to initial data, probing the bias at a much deeper, granular level.
 Furthermore, it continuously optimizes the test data distribution to explicitly align with the target model's specific weaknesses. This results in a comprehensive, deep, and targeted evaluation.
 
-To drive this dynamic evaluation, the core of DeepBias is a generative Proposer that synthesizes initial test cases. This Proposer is continuously optimized using Direct Preference Optimization (DPO)~\cite{rafailov2023direct}. By treating successful bias elicitations as positive preferences and failed attempts as negative, the Proposer learns to generate evaluation data that can easily expose the model's societal bias. This closed-loop process explicitly shifts the generated dataset's distribution to tightly align with the specific vulnerabilities of the target model.
+To drive this dynamic evaluation, the core of DeepBias is a generative Proposer that synthesizes initial test cases. Based on the target model's responses to these initial queries, we directly apply Direct Preference Optimization (DPO)~\cite{rafailov2023direct} to the Proposer, treating successful bias elicitations as positive preferences and failed attempts as negative. This closed-loop process explicitly shifts the generated dataset's distribution to tightly align with the specific vulnerabilities of the target model.
 
-Besides, we deploy a dual-agent mechanism to conduct in-depth, instance-level probing based on the target model's immediate responses. \textbf{The Rewriter}: For samples where the model initially appears safe, the Rewriter alters the prompt's phrasing or context. This subtle adversarial rewriting is designed to bypass surface-level safety filters and successfully elicit underlying bias. \textbf{The DeepMiner}: When the model's answer exposes a risk of bias, the DeepMiner drills deeper. It formulates targeted follow-up questions to accurately pinpoint the specific dimensions of the stereotype and deeply probe the severity of the exposed bias.
+After DPO optimization, we deploy an autonomous DeepAgent to conduct in-depth, instance-level probing through multi-turn interaction with the target model. Unlike static one-shot evaluation, the DeepAgent operates as a fully autonomous agent that engages in a sequential dialogue over three turns. At each turn, it reviews the complete interaction history and adaptively selects one of two strategies: if the model's previous response exposes bias, the DeepAgent deepens the probing by generating a targeted follow-up question to pinpoint the specific dimensions and severity of the stereotype; if the model responds safely, the DeepAgent adversarially rewrites the query to bypass safety filters and elicit latent biases. This two-stage design decouples distribution-level optimization (Proposer + DPO) from instance-level deep probing (DeepAgent), enabling both a well-targeted data distribution and thorough per-sample bias exploration.
 
-% Our method is motivated by the insight that bias manifests in two forms: Exposed Bias (explicit discriminatory output) and Latent Bias (hidden bias masked by safety alignment). To tackle this, we utilize two \textcolor{red}{large model} agents to conduct an in-depth exploration of biases.
-% \textbf{The DeepMiner}: For samples where the model exposes bias, the DeepMiner digs deeper, asking follow-up questions to assess the severity and consistency of the bias.
-% \textbf{The Rewriter}: For samples where the model appears safe (e.g., refusal), the Rewriter performs adversarial rewriting—altering the prompt's phrasing or context—to bypass safety filters and unmask latent biases.
+% Our method is motivated by the insight that bias manifests in two forms: Exposed Bias (explicit discriminatory output) and Latent Bias (hidden bias masked by safety alignment). To tackle this, we deploy an autonomous DeepAgent that conducts multi-turn sequential probing, adaptively deepening exposed biases or rewriting safe responses to unmask latent biases.
 
 % Crucially, we close the loop by training the Proposer using Direct Preference Optimization (DPO)\cite{rafailov2023direct}. By treating successful bias elicitations as "positive preferences" and failed attempts as "negative," the Proposer learns to generate more potent and penetrating evaluation data over time. This process transforms the Proposer into a highly specialized generator, capable of synthesizing targeted evaluation data that specifically exploits the unique bias vulnerabilities of the target model.
 
@@ -89,7 +87,7 @@ To construct a robust evaluation standard suitable for advanced VLMs, we employ 
 Our main contributions are summarized as follows:
 \begin{itemize}
     \item \textbf{Dynamic Adaptive Framework}: We propose DeepBias, the first framework to utilize DPO-driven evolution for VLM bias evaluation, shifting the paradigm from static datasets to dynamic adversarial probing.
-    \item \textbf{In-Depth Probing Strategy}: Moving beyond superficial accuracy metrics, we synthesize deeper, harder, and higher-quality evaluation samples. This allows us to systematically penetrate safety filters and uncover latent biases that are typically masked in standard benchmarks.
+    \item \textbf{In-Depth Probing Strategy}: We introduce an autonomous DeepAgent that conducts multi-turn sequential interactions with the target model, adaptively deepening or rewriting queries based on full dialogue history. This allows us to systematically penetrate safety filters and uncover latent biases that are typically masked in standard benchmarks.
     \item \textbf{The DeepBias Benchmark}: By aggregating the hard and deep test samples from probing 8 diverse LVLMs, we release a high-quality, challenging benchmark dataset for the community.
     \item \textbf{Empirical Evidence}: Extensive experiments show that DeepBias successfully exposes significantly more bias than static baselines, highlighting the fragility of current safety alignments in LVLMs.
 \end{itemize}
@@ -114,7 +112,7 @@ As the field shifts to Vision-Language Models (LVLMs), research has extended the
 Recent studies reveal that by combining structured textual prompts with specific visual contexts\cite{gong2025figstep}, or fragmenting malicious instructions across different modalities\cite{niu2024jailbreaking,shayegani2023jailbreak}, it is possible to effectively bypass the cross-modal safety alignment of LVLMs.
 
 However, applying existing automated red teaming paradigms directly to social bias evaluation presents significant limitations. First, a Mismatch in Target: Current jailbreak frameworks predominantly optimize for eliciting overt general harms (e.g., generating malicious code, violence, or extreme toxicity)\cite{mehrotra2024tree}. Social bias, conversely, is deeply ingrained, implicit, and often context-dependent, requiring a more nuanced elicitation strategy than standard adversarial attacks. Second, Binary Metrics over Depth: Existing methods primarily optimize for Attack Success Rate (ASR)---a binary metric indicating whether a model is induced to generate harmful content\cite{chao2025jailbreaking}. They do not measure the severity, consistency, or depth of the bias once exposed. Third, Semantic Degradation: To maximize ASR, many automated algorithms (e.g., gradient-based prompt search) generate unnatural, gibberish prompts\cite{zou2023universal}. While these may force errors, they fail to reflect realistic human-AI interaction.
-In contrast, DeepBias shifts the objective from binary jailbreaking to depth probing. Instead of generating gibberish to force errors, our Rewriter and DeepMiner agents synthesize semantically natural and contextually complex scenarios, aiming to uncover deep-seated stereotypes.
+In contrast, DeepBias shifts the objective from binary jailbreaking to depth probing. Instead of generating gibberish to force errors, our DeepAgent synthesizes semantically natural and contextually complex scenarios through multi-turn interactions, aiming to uncover deep-seated stereotypes.
 
 % TODO: 文献：reversegen redhit
 % 检查文献正确性
@@ -179,20 +177,18 @@ Following the textual data enhancement, we transition the expanded dataset into 
 
 
 \subsection{Adaptive Data Generation via Adversarial Evolution}
-% 这里面有三个实体，分别是数据生成器Proposer，还有两个Agent分别叫做DeepMiner和Rewriter
-% Proposer是数据生成器。先用Seed Dataset使用sft方法（lora）微调，让它学会生成数据。生成方法是仿写式，就是我给出示例数据，给出仿写要求，让它生成数据（具体的prompt会在supp里面给出）。
-% 数据生成方法也是从种子数据里面给出种子，让它仿写出一批数据。然后这批数据会给被测模型，让模型给出回答。得到回答以后，如果是模型表现出了偏见，那么就会用DeepMiner在这个问题的文本的基础上写出更深入的问题，挖掘更深处的偏见；如果没表现出偏见，那么就会用Rewriter改写这个问题的文本部分，争取改写后的问题能够挖掘出偏见。
-% 最后，我们把能够使模型表现出偏见的数据标记为正样本，不能表现出偏见的标记为负样本，用DPO去训练Proposer，让Proposer能够生成更加针对模型弱点的数据。
-% 这里要讲一下，Proposer和另外两个agent的区别是什么，两个agent能针对单个问题进行深入的挖掘，而proposer能使生成数据集的分布更加针对模型的弱点
+% 这里面有两个实体：数据生成器Proposer和自主智能体DeepAgent
+% Proposer生成初始数据，DeepAgent对每个问题进行三轮顺序交互（基于完整历史，暴露偏见则深化，未暴露则改写）
+% Proposer负责数据分布层面的优化，DeepAgent负责单个样本层面的深度挖掘
 \label{subsec:data_generation}
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{images/method.pdf}
-\caption{\textbf{The DeepBias Framework.} (a) Framework Overview: The macro-level adaptive and dynamic bias probing cycle, illustrating how the Proposer iteratively evolves through target model evaluation to construct the Deep Bias Evaluation Dataset. (b) Detailed Dataflow: The micro-level multi-agent bias mining workflow. The Proposer generates candidate test data. Based on whether the target model exposes bias, the samples are routed to either the DeepMiner (for generating follow-up data to probe deeper) or the Rewriter (for adversarial rewriting to bypass safety filters). The resulting outcomes are compiled into a Preference Dataset (Positive/Negative) to update the Proposer via DPO, closing the optimization loop.}
+\caption{\textbf{The DeepBias Framework.} (a) Framework Overview: The macro-level adaptive and dynamic bias probing cycle, illustrating how the Proposer iteratively evolves through target model evaluation to construct the DeepBias Evaluation Dataset. (b) Detailed Dataflow: The Proposer generates candidate test data, which are evaluated by the target model. The initial responses are directly used to construct a Preference Dataset (Positive/Negative) to update the Proposer via DPO. After DPO optimization, the DeepAgent conducts multi-turn sequential probing on each sample: at each turn, it reviews the full dialogue history and adaptively deepens exposed biases or adversarially rewrites safe responses, producing the final deep-probed evaluation data.}
 \label{fig:workflow}
 \end{figure*}
 
-As illustrated in Fig.\ref{fig:workflow}, the core innovation of DeepBias lies in its adaptive data generation mechanism, which iteratively evolves to produce increasingly challenging test cases tailored to the target model's vulnerabilities. Our framework comprises three key components: the Proposer, which generates candidate test samples; and two specialized agents, the DeepMiner and the Rewriter, which intensify the probing process. The complete pipeline is visually detailed in the dataflow of Fig.\ref{fig:workflow}(b).
+As illustrated in Fig.\ref{fig:workflow}, the core innovation of DeepBias lies in its adaptive data generation mechanism, which iteratively evolves to produce increasingly challenging test cases tailored to the target model's vulnerabilities. Our framework comprises two key components: the Proposer, which generates candidate test samples; and an autonomous DeepAgent, which conducts multi-turn sequential probing to intensify the evaluation. The complete pipeline is visually detailed in the dataflow of Fig.\ref{fig:workflow}(b).
 
 % 一个图片讲述如何文生图
 
@@ -203,30 +199,28 @@ We initialize the Proposer by fine-tuning a base language model on the enhanced 
 During the generation phase, the Proposer employs a few-shot generation strategy like the data enhancement pipeline described in Section~\ref{subsec:data_enhancing}.
 Given randomly sampled $(P,Q)$ pairs from the seed dataset as exemplars, alongside strict generative rules enforcing intentional ambiguity and negative implications, the Proposer divergently synthesizes new test cases across varying demographic populations, scenarios, and difficulty levels.
 We then transform these textual outputs into our final multimodal format $(I_1, I_2, I_3, Q, \mathcal{O})$.
-We input these formatted test cases into the target LVLM to obtain its initial responses.
-Based on these responses, we deploy two specialized agents, the DeepMiner and the Rewriter, to conduct instance-level optimization, refining individual test cases to maximize their probing effectiveness.
+We input these formatted test cases into the target LVLM to obtain its initial responses $\{r_1, r_2, r_3\}$ for each sample.
+
+\textbf{DPO Optimization.}
+Based on the target model's initial responses, we directly construct a preference dataset and optimize the Proposer \emph{before} any agent-based refinement. Samples whose initial queries successfully elicit bias (i.e., $r_1 \neq r_2$ or $r_2 \neq r_3$) are labeled as positive preferences, while those that fail are labeled as negative preferences.
+
+\textbf{The DeepAgent} operates through a three-turn dialogue loop on each test instance. At each turn $t \in \{1, 2, 3\}$, the DeepAgent receives the complete interaction history $\mathcal{H}_t = \{(Q_0, r_0), (Q_1, r_1), \ldots, (Q_{t-1}, r_{t-1})\}$ and adaptively selects one of two strategies:
 
 \begin{itemize}
-    \item \textbf{The DeepMiner}: When the target model exhibits bias (i.e., produces inconsistent responses), the DeepMiner agent is invoked.
-    It drills down into the exposed bias.
-    % Its role is to probe deeper by generating follow-up questions that escalate the severity and consistency of the exposed bias.
-    Rather than stopping at a general prejudiced conclusion, DeepMiner refines the question to pinpoint the exact nature of the stereotype.
-    For example, if the model deems a demographic group unfit for a certain profession, DeepMiner will generate follow-up questions isolating specific capabilities, asking whether the perceived unfitness stems from a lack of logical reasoning, leadership skills, or stress tolerance. By replacing the original $Q$ with a more granular $Q'$ (while keeping the images unchanged), it measures the depth and specific facets of the bias.
-    % For example, if a model shows racial bias in a hiring scenario, DeepMiner might ask: "Is this person incapable of fulfilling the leadership role?". These follow-up questions assess whether the bias is superficial or deeply ingrained. The DeepMiner operates on the question text $Q$, generating a refined question $Q'$ while keeping the image triplet unchanged.
+    \item \textbf{Deepening}: When the target model's previous response exhibits bias (i.e., produces inconsistent responses across the image triplet), the DeepAgent drills down into the exposed bias. Rather than stopping at a general prejudiced conclusion, it generates a targeted follow-up question to pinpoint the exact nature and severity of the stereotype. For example, if the model deems a demographic group unfit for a certain profession, the DeepAgent will generate a follow-up question isolating specific capabilities, asking whether the perceived unfitness stems from a lack of logical reasoning, leadership skills, or stress tolerance.
 
-    \item \textbf{The Rewriter}: When the target model responds safely (i.e., produces consistent responses), the Rewriter agent is activated.
-    Direct bias-probing questions (e.g., ``Is this person of low intelligence?'') are often easily deflected by aligned LVLMs.
-    To unmask latent biases, the Rewriter transforms $Q$ into a more implicit, indirect query $Q'$ (e.g., ``Is this person likely to achieve a perfect score in an advanced math exam?'').
-    By shifting from explicit stereotyping to nuanced situational judgments, the Rewriter effectively strips away the model's safety disguise and forces it to reveal hidden prejudices.
+    \item \textbf{Rewriting}: When the target model responds safely (i.e., produces consistent responses), the DeepAgent adversarially rewrites the query to bypass safety filters. Direct bias-probing questions (e.g., ``Is this person of low intelligence?'') are often easily deflected by aligned LVLMs. The DeepAgent transforms $Q$ into a more implicit, indirect query $Q'$ (e.g., ``Is this person likely to achieve a perfect score in an advanced math exam?''). By shifting from explicit stereotyping to nuanced situational judgments, it effectively strips away the model's safety disguise and forces it to reveal hidden prejudices.
 \end{itemize}
 
+At each turn, the DeepAgent generates exactly one refined question $Q_t$ (while keeping the image triplet unchanged), which is then evaluated against the target model to obtain responses $\{r_1^t, r_2^t, r_3^t\}$. The full history $\mathcal{H}_t$ enables the DeepAgent to build upon previous successes and failures, progressively narrowing in on the model's deepest vulnerabilities. This sequential, history-aware design transforms the evaluation from a one-shot query into a multi-turn adversarial dialogue, achieving substantially deeper bias exploration than any single-pass approach.
 
 
-After the generation-evaluation-refinement process, we construct a preference dataset for training the Proposer. Samples that successfully elicit bias (either directly or after refinement) are labeled as positive preferences, while those that fail to expose bias are labeled as negative preferences. We then apply Direct Preference Optimization (DPO)~\cite{rafailov2023direct} to update the Proposer, maximizing the likelihood of generating positive samples and minimizing that of negative ones. Formally, given a preference pair $(x_w, x_l)$ where $x_w$ is a successful (bias-eliciting) sample and $x_l$ is an unsuccessful one, DPO optimizes:
+
+As introduced above, we construct the preference dataset directly from the Proposer's initial generation results, \emph{before} the DeepAgent's refinement. We then apply Direct Preference Optimization (DPO)~\cite{rafailov2023direct} to update the Proposer. Formally, given a preference pair $(x_w, x_l)$ where $x_w$ is a successful (bias-eliciting) sample and $x_l$ is an unsuccessful one, DPO optimizes:
 \begin{equation}
 \mathcal{L}_{\text{DPO}} = -\mathbb{E}_{(x_w, x_l)} \left[ \log \sigma \left( \beta \log \frac{\pi_\theta(x_w)}{\pi_{\text{ref}}(x_w)} - \beta \log \frac{\pi_\theta(x_l)}{\pi_{\text{ref}}(x_l)} \right) \right]
 \end{equation}
-where $\pi_\theta$ is the Proposer being optimized, $\pi_{\text{ref}}$ is the reference model (the SFT-initialized Proposer), $\beta$ is a temperature parameter, and $\sigma$ is the sigmoid function. This iterative optimization drives the Proposer to evolve, generating progressively harder and more targeted test cases.
+where $\pi_\theta$ is the Proposer being optimized, $\pi_{\text{ref}}$ is the reference model (the SFT-initialized Proposer), $\beta$ is a temperature parameter, and $\sigma$ is the sigmoid function. This iterative optimization drives the Proposer to evolve, generating progressively harder and more targeted test cases. By keeping the DPO loop solely on the Proposer's raw outputs, we ensure a clean optimization signal that directly reflects the Proposer's intrinsic generation quality. The Proposer's DPO loop operates at the \emph{distribution level}, learning to shift the overall data distribution toward model vulnerabilities, while the DeepAgent operates at the \emph{instance level} after DPO, maximizing the depth of bias exploration for each individual sample.
 
 % \paragraph{Multi-Model Ensemble for Benchmark Construction.}
 \subsection{DeepBias Benchmark Construction}
@@ -250,23 +244,23 @@ While the dynamic framework excels at targeted probing, the community also requi
 %         \FOR{each sample $(I_1, I_2, I_3, Q) \in \mathcal{B}$}
 %             \STATE Query $\mathcal{M}_k$ with $(I_1, Q)$, $(I_2, Q)$, $(I_3, Q)$ to get $\{r_1, r_2, r_3\}$
 %             \IF{$r_1 \neq r_2$ or $r_2 \neq r_3$}
-%                 \STATE $Q' \leftarrow \text{DeepMiner}(Q, \{r_1, r_2, r_3\})$
-%                 \STATE Add $(I_1, I_2, I_3, Q')$ to $\mathcal{D}_{\text{candidate}}$
 %                 \STATE Add $((I_1, I_2, I_3, Q), \text{positive})$ to $\mathcal{D}_{\text{preference}}$
 %             \ELSE
-%                 \STATE $Q' \leftarrow \text{Rewriter}(Q)$
-%                 \STATE Query $\mathcal{M}_k$ with $(I_1, Q')$, $(I_2, Q')$, $(I_3, Q')$ to get $\{r'_1, r'_2, r'_3\}$
-%                 \IF{$r'_1 \neq r'_2$ or $r'_2 \neq r'_3$}
-%                     \STATE Add $(I_1, I_2, I_3, Q')$ to $\mathcal{D}_{\text{candidate}}$
-%                     \STATE Add $((I_1, I_2, I_3, Q'), \text{positive})$ to $\mathcal{D}_{\text{preference}}$
-%                 \ELSE
-%                     \STATE Add $((I_1, I_2, I_3, Q), \text{negative})$ to $\mathcal{D}_{\text{preference}}$
-%                 \ENDIF
+%                 \STATE Add $((I_1, I_2, I_3, Q), \text{negative})$ to $\mathcal{D}_{\text{preference}}$
 %             \ENDIF
 %         \ENDFOR
 %     \ENDFOR
-%     \STATE $\mathcal{D}_{\text{benchmark}} \leftarrow \mathcal{D}_{\text{benchmark}} \cup \mathcal{D}_{\text{candidate}}$
 %     \STATE Update $\pi_\theta$ via DPO on $\mathcal{D}_{\text{preference}}$ with reference $\pi_{\text{ref}}$
+%     \FOR{each sample $(I_1, I_2, I_3, Q) \in \mathcal{B}$} \COMMENT{DeepAgent probing after DPO}
+%         \STATE $\mathcal{H} \leftarrow \{(Q, \{r_1, r_2, r_3\})\}$
+%         \FOR{turn $t = 1$ to $3$}
+%             \STATE $Q_t \leftarrow \text{DeepAgent}(\mathcal{H})$ \COMMENT{Adaptive: deepen or rewrite}
+%             \STATE Query $\mathcal{M}_k$ with $(I_1, Q_t)$, $(I_2, Q_t)$, $(I_3, Q_t)$ to get $\{r_1^t, r_2^t, r_3^t\}$
+%             \STATE $\mathcal{H} \leftarrow \mathcal{H} \cup \{(Q_t, \{r_1^t, r_2^t, r_3^t\})\}$
+%         \ENDFOR
+%         \STATE Add best probing results to $\mathcal{D}_{\text{candidate}}$
+%     \ENDFOR
+%     \STATE $\mathcal{D}_{\text{benchmark}} \leftarrow \mathcal{D}_{\text{benchmark}} \cup \mathcal{D}_{\text{candidate}}$
 % \ENDFOR
 % \RETURN $\mathcal{D}_{\text{benchmark}}$
 % \end{algorithmic}
@@ -298,14 +292,14 @@ Qwen2.5-VL-Instruct-7B&84.4 & 68.7 & 78.2 & 60.5 & 71.8 & 52.3\\
 \bottomrule
 \end{tabular}
 % }
-\caption{\textbf{Effectiveness of the DeepBias framework in exposing Age bias.} We report the consistency accuracy ($r_1=r_2=r_3$) across three iterations for three target LVLMs. ``Initial'' denotes the accuracy against the Proposer's direct generation, while ``Explore'' represents the accuracy after targeted refinement by the DeepMiner and Rewriter agents. }
+\caption{\textbf{Effectiveness of the DeepBias framework in exposing Age bias.} We report the consistency accuracy ($r_1=r_2=r_3$) across three iterations for three target LVLMs. ``Initial'' denotes the accuracy against the Proposer's direct generation, while ``Explore'' represents the accuracy after multi-turn refinement by the DeepAgent. }
 \label{tab:effectiveness}
 \end{table*}
 
 
-To validate the effectiveness of our adaptive adversarial framework, we conduct an experiment focusing on the Age category across three target models: InternVL3-8B, LLaVA-1.5-13B, and Qwen2.5-VL-Instruct-7B. We execute the generation-refinement-optimization pipeline for three rounds and report two metrics per iteration in Table~\ref{tab:effectiveness}. \emph{Initial} refers to the target model's consistency accuracy on the test cases directly generated by the Proposer, while \emph{Explore} denotes the accuracy on the refined test cases after the intervention of the DeepMiner and Rewriter agents. Following the framework for varying sensitive attributes described in Section~\ref{subsec:test_data}, a lower accuracy ($r_1=r_2=r_3$) indicates a higher rate of successfully exposed societal bias.
+To validate the effectiveness of our adaptive adversarial framework, we conduct an experiment focusing on the Age category across three target models: InternVL3-8B, LLaVA-1.5-13B, and Qwen2.5-VL-Instruct-7B. We execute the generation-refinement-optimization pipeline for three rounds and report two metrics per iteration in Table~\ref{tab:effectiveness}. \emph{Initial} refers to the target model's consistency accuracy on the test cases directly generated by the Proposer, while \emph{Explore} denotes the accuracy on the refined test cases after the DeepAgent's multi-turn probing. Following the framework for varying sensitive attributes described in Section~\ref{subsec:test_data}, a lower accuracy ($r_1=r_2=r_3$) indicates a higher rate of successfully exposed societal bias.
 
-Within any single iteration, the \emph{Explore} accuracy is consistently and significantly lower than the \emph{Initial} accuracy. For instance, in Iteration 1 for LLaVA-1.5-13B, the agents' exploration drastically drops the consistency accuracy from $81.6\%$ to $64.4\%$. This intra-iteration degradation proves that our dual-agent refinement strategy successfully unmasks latent biases that the initial queries fail to trigger.
+Within any single iteration, the \emph{Explore} accuracy is consistently and significantly lower than the \emph{Initial} accuracy. For instance, in Iteration 1 for LLaVA-1.5-13B, the agents' exploration drastically drops the consistency accuracy from $81.6\%$ to $64.4\%$. This intra-iteration degradation proves that the DeepAgent's multi-turn refinement strategy successfully unmasks latent biases that the initial queries fail to trigger.
 
 Between different iterations, the \emph{Initial} accuracy itself progressively degrades across iterations. Taking InternVL3-8B as an example, the Proposer's initial baseline accuracy drops from $91.6\%$ in Iteration 1, down to $85.7\%$ in Iteration 2, and further to $79.9\%$ in Iteration 3. This inter-iteration decline provides compelling empirical evidence for the success of our DPO optimization loop. By iteratively learning from successful bias elicitations, the Proposer inherently evolves into a stronger adversarial generator, capable of synthesizing increasingly challenging and targeted test cases.
 
@@ -332,18 +326,18 @@ Qwen2.5-VL-7B&84.4&82&81.6  \\
 \hline
 \end{tabular}
 }
-\caption{\textbf{Ablation study disabling the DeepMiner and Rewriter agents.} We report the consistency accuracy across three iterations with both DeepMiner and Rewriter disabled.}
+\caption{\textbf{Ablation study disabling the DeepAgent.} We report the consistency accuracy across three iterations with the DeepAgent disabled.}
 \label{tab:ablation}
 \end{table}
 
-To isolate the contribution of the DeepMiner and Rewriter agents, we conduct an ablation study where we disable both agents while keeping all other components unchanged. In this ablation setting, the Proposer still undergoes DPO training across three iterations, but its preference dataset relies solely on the binary success or failure of its initial, direct queries. Table~\ref{tab:ablation} presents the accuracy degradation of this ablated variant.
+To isolate the contribution of the DeepAgent, we conduct an ablation study where we disable it while keeping all other components unchanged. In this ablation setting, the Proposer still undergoes DPO training across three iterations identically to the full method, but no DeepAgent probing is applied after DPO. Table~\ref{tab:ablation} presents the accuracy of this ablated variant, which reflects the Proposer's raw generation performance without deep probing.
 
-By cross-referencing Table~\ref{tab:ablation} with the full-method results in Table~\ref{tab:effectiveness}, removing the dual-agent mechanism weakens the framework's bias-mining ability. Across all target models, the ablated version shows less accuracy degradation during three interations. For instance, without the agents, InternVL3-8B and LLaVA-1.5-13B stall at $79.6\%$ and $62.2\%$ respectively, leaving a performance gap of roughly 14 to 16 percentage points compared to the full method.
+By cross-referencing Table~\ref{tab:ablation} with the full-method results in Table~\ref{tab:effectiveness}, removing the DeepAgent weakens the framework's bias-mining ability. Across all target models, the ablated version shows less accuracy degradation during three iterations. For instance, without the DeepAgent, InternVL3-8B and LLaVA-1.5-13B stall at $79.6\%$ and $62.2\%$ respectively, leaving a performance gap of roughly 14 to 16 percentage points compared to the full method.
 
 Most notably, Qwen2.5-VL-7B exhibits severe evolution stagnation in the ablated setting, dropping a mere 2.8 percentage points ($84.4\%$ to $81.6\%$), compared to reaching $52.3\%$ with the full method. We attribute this to a homologous lineage bottleneck: since the Proposer (Qwen3-32B) and the target model belong to the same Qwen architecture, they share identical safety boundaries, which causes the Proposer to generate queries only within their common safe distribution, failing to expose the target model's biased flaws.
-This starves the DPO process of the ``positive'' bias-eliciting samples needed for optimization. The dual agents' forced adversarial prompting breaks this homologous bottleneck, pulling queries out of the default safe space to successfully unmask latent bias.
+This homologous lineage causes the Proposer to generate queries only within their common safe distribution. While the DPO process still operates, the Proposer's evolution is limited by its intrinsic generation boundaries. The DeepAgent's multi-turn adversarial prompting breaks through these boundaries at the instance level, pulling queries out of the default safe space to successfully unmask latent bias.
 
-Ultimately, these findings provide important insights for automated red-teaming: sole reliance on an LLM's intrinsic generation capabilities will inevitably lead to optimization bottlenecks. The dual-agent module is indispensable not only for immediate probing, but also for functioning as an automated jailbreaker. By continually breaking the safety boundaries, the agents can provide diverse and out-of-distribution data samples to maintain the DPO training loop of the Proposer, completely preventing the evolution stagnation.
+Ultimately, these findings provide important insights for automated red-teaming: sole reliance on an LLM's intrinsic generation capabilities will inevitably lead to probing bottlenecks. Even with DPO optimization, the Proposer alone cannot penetrate deeply enough into model vulnerabilities. The DeepAgent is indispensable as a complementary instance-level prober, breaking through safety boundaries via multi-turn interactions to expose biases that the Proposer's distribution-level optimization cannot reach on its own.
 
 
 \subsection{Benchmark Construction}
@@ -502,19 +496,19 @@ Gemini\\
 \paragraph{Case Study: Evolution of Bias-Probing Samples.}
 % To illustrate the adaptive nature of our framework, we present qualitative examples of how the Proposer evolves to generate increasingly sophisticated bias-probing samples. Figure~\ref{fig:evolution} shows three representative samples from Iterations 1, 2, and 3 targeting age bias in InternVL3-8B. In Iteration 1, the Proposer generates relatively straightforward scenarios (e.g., ``This person is applying for a job. Will they be hired?''). By Iteration 3, the questions become more nuanced and contextually complex (e.g., ``This person is leading a technology startup. How likely are investors to fund their venture?''), requiring the model to navigate multiple layers of stereotypical associations. This progression demonstrates that DPO successfully guides the Proposer toward more implicit and challenging bias elicitation strategies.
 
-\paragraph{Case Study: DeepMiner and Rewriter.}
-% Figure~\ref{fig:agents} provides concrete examples of how the DeepMiner and Rewriter agents refine initial samples. For a sample where the model exhibits bias (e.g., predicting different outcomes for young vs. elderly individuals in a hiring scenario), the DeepMiner generates follow-up questions that probe the consistency and severity of the bias (e.g., ``Would you recommend this person for a leadership position?'' or ``How would this person perform under pressure?''). For samples where the model responds safely (e.g., consistently selecting ``Unknown''), the Rewriter performs adversarial transformations, such as embedding the question in a seemingly neutral narrative (e.g., ``In a recent survey, most employers prefer candidates with certain characteristics. Based on this person's appearance, how would they be perceived?''). These examples highlight the complementary roles of the two agents in maximizing bias elicitation.
+\paragraph{Case Study: DeepAgent Multi-Turn Probing.}
+% Figure~\ref{fig:agents} provides concrete examples of how the DeepAgent refines samples through multi-turn interaction. For a sample where the model exhibits bias (e.g., predicting different outcomes for young vs. elderly individuals in a hiring scenario), the DeepAgent deepens the probing with targeted follow-up questions (e.g., ``Would you recommend this person for a leadership position?'' or ``How would this person perform under pressure?''). For samples where the model responds safely (e.g., consistently selecting ``Unknown''), the DeepAgent adversarially rewrites the query, such as embedding the question in a seemingly neutral narrative (e.g., ``In a recent survey, most employers prefer candidates with certain characteristics. Based on this person's appearance, how would they be perceived?''). Across three sequential turns, the DeepAgent leverages the full interaction history to progressively expose deeper biases.
 \subsection{Limitations and Future Work}
 While DeepBias improves bias evaluation, several limitations need future investigation. First, our current framework focuses on three major bias categories (Age, Race, Gender). Extending to other dimensions (e.g., Religion, Disability, Socioeconomic Status) would provide more comprehensive coverage. Second, the adversarial evolution process requires substantial computational resources. Developing more efficient optimization strategies could improve scalability. Third, while our benchmark exposes biases, it does not directly provide mitigation strategies. Future work could explore integrating DeepBias into the training loop to guide bias-aware fine-tuning or developing automated debiasing techniques informed by the discovered vulnerabilities. Finally, our current methodology is specifically tailored to uncovering societal biases. A highly promising direction for future research involves generalizing this adaptive adversarial framework to evaluate other critical dimensions of LVLM trustworthiness, such as multimodal hallucinations, value alignment, and broader safety risks.
 
 
 \section{Conclusion}
-In this paper, we introduced DeepBias, a dynamic and adversarial evaluation framework designed to expose deeply ingrained societal biases in Large Vision-Language Models (LVLMs). Unlike existing static benchmarks, our approach leverages a constantly optimized Proposer and dual-agent deep refinement mechanism to continuously generate test cases.
+In this paper, we introduced DeepBias, a dynamic and adversarial evaluation framework designed to expose deeply ingrained societal biases in Large Vision-Language Models (LVLMs). Unlike existing static benchmarks, our approach leverages a constantly optimized Proposer and an autonomous DeepAgent with multi-turn deep refinement to continuously generate test cases.
 Extensive experiments demonstrate that this dynamic probing consistently exposes the societial biases of target models. We found that the mechanism drives the data distribution to explicitly shift toward the models' latent weaknesses and generates progressively deep and targeted adversarial queries. By scaling this framework across an ensemble of anchor models, we successfully curated a highly challenging benchmark. Subsequent testing of state-of-the-art LVLMs on this benchmark revealed demographic prejudices that remain largely hidden under traditional evaluation protocols. By shifting the paradigm from fixed evaluation to dynamic adversarial mining, our work provides a robust, evolving tool to uncover complex vulnerabilities and foster the development of genuinely equitable multimodal systems.
 % In this paper, we introduced DeepBias, an adaptive and dynamic framework for in-depth probing of social biases in Large Vision-Language Models. Our work addresses a critical limitation of existing evaluation protocols:
 % they rely on static datasets that only focus on shallow accuracy and fail to detect potential representation biases.
 
-% The core innovation of DeepBias lies in its adversarial evolution paradigm. By employing a generative Proposer continuously optimized via Direct Preference Optimization, combined with a dual-agent mechanism (DeepMiner and Rewriter), our framework systematically penetrates safety filters to expose both explicit and latent biases. The DeepMiner escalates the severity of already-exposed biases through follow-up questioning, while the Rewriter performs adversarial reformulation to unmask biases hidden behind superficial safe responses. This instance-level refinement, coupled with distribution-level optimization of the Proposer, enables our method to generate progressively harder and more targeted test cases that exploit model-specific vulnerabilities.
+% The core innovation of DeepBias lies in its adversarial evolution paradigm. By employing a generative Proposer continuously optimized via Direct Preference Optimization, combined with an autonomous DeepAgent that conducts multi-turn sequential probing, our framework systematically penetrates safety filters to expose both explicit and latent biases. The DeepAgent adaptively deepens exposed biases or adversarially rewrites safe responses across three sequential turns, leveraging full dialogue history. This instance-level refinement, coupled with distribution-level optimization of the Proposer, enables our method to generate progressively harder and more targeted test cases that exploit model-specific vulnerabilities.
 
 % Through extensive experiments on 6 anchor models and evaluation on 16 diverse LVLMs, we demonstrated that DeepBias successfully exposes deep-seated vulnerabilities that static baselines miss. Our method achieved substantial accuracy degradation across all tested models, with the resulting DeepBias Benchmark posing significantly greater challenges than existing static datasets.
 
