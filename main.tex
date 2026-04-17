@@ -42,7 +42,9 @@
   First, a generative Proposer synthesizes test cases to evaluate the target model.
   Second, we optimize the Proposer via Direct Preference Optimization based on the target model's initial responses, directing it to generate increasingly challenging and targeted samples.
   Third, an autonomous DeepAgent conducts multi-turn sequential probing on each sample: at each turn, it analyzes the full dialogue history and either deepens exposed biases or adversarially rewrites the query to bypass safety filters, progressively uncovering latent biases.
-  Furthermore, by employing 6 diverse, state-of-the-art LVLMs as anchor models within this optimization loop, we iteratively synthesize a novel, highly challenging benchmark dataset. Comprehensive experiments demonstrate that DeepBias successfully exposes deep societal biases, establishing a scalable and evolutionary paradigm for robust LVLM safety evaluation.
+  Furthermore, we employ 6 diverse, state-of-the-art LVLMs as a parallel anchor ensemble whose aggregated responses jointly drive the optimization, iteratively synthesizing a novel, highly challenging benchmark dataset.
+  % TODO: 实验完成后在此句补 headline number（如 bias elicitation rate 相对 static baselines 提升 X\%）
+  Comprehensive experiments demonstrate that DeepBias successfully exposes deep societal biases, establishing a scalable and evolutionary paradigm for robust LVLM safety evaluation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -57,12 +59,12 @@ Vision-Language Model Bias, Adversarial Bias Probing, Dynamic Benchmark Generati
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{images/teaser.pdf}
-\caption{Comparison between traditional static evaluation and our DeepBias framework. Top: Static methods rely on fixed test data, resulting in a mismatch between the dataset distribution and the model's vulnerabilities. Bottom: DeepBias dynamically generates new text queries based on the model's feedback to initial data. It explicitly aligns the dataset distribution with specific model weaknesses, achieving targeted and in-depth bias probing.}
+\caption{Comparison between traditional static evaluation and our DeepBias framework. \textbf{Left, Traditional Static Evaluation:} a fixed set of queries is issued to the target LVLM; safety alignment deflects every query, yielding an illusory ``0\% bias'' verdict that masks the mismatch between the test distribution and the model's true weaknesses. \textbf{Right, Our DeepBias Evaluation} integrates two complementary mechanisms. Under \emph{Dynamically update}, the Proposer iteratively uses the target model's responses as optimization signals to shift its output distribution toward the model's vulnerable regions, producing a targeted test set aligned with its real failure modes. Under \emph{Deep Exploration}, an autonomous DeepAgent conducts multi-turn sequential probing on each retained sample: starting from an initially deflected query, it adaptively deepens along exposed dimensions such as math performance, or adversarially rewrites the prompt with a racial comparative frame, progressively surfacing latent stereotypes that single-shot querying cannot reach.}
 \label{fig:teaser}
 \end{figure*}
 
 Current bias evaluation protocols predominantly rely on static benchmarks\cite{hall2023visogender,zhang2022counterfactually}.
-As illustrated in the top panel of Fig.\ref{fig:teaser}, these benchmarks typically consist of fixed sets of image-text pairs and rely on one-way inference.
+As illustrated in the left panel of Fig.\ref{fig:teaser}, these benchmarks typically consist of fixed sets of image-text pairs and rely on one-way inference.
 The data distribution of the fixed dataset is independent of the target model's bias vulnerabilities.
 While foundational, this static paradigm faces three major limitations.
 First, static benchmarks~\cite{fu2023mme}, particularly those curated from real world data or human annotations~\cite{liu2024mmbench}, are inevitably absorbed into the massive training corpora of modern LVLMs.
@@ -71,230 +73,263 @@ Second, existing methods rely on fixed queries that cannot adapt to model feedba
 Third,  static datasets rarely align with the specific vulnerabilities of the target model. This inflexibility wastes evaluation efforts on redundant queries where the model is already robust, while actual safety problems remain unexamined.
 
 To overcome these limitations, we advocate for a transition from static dataset to dynamic adversarial evaluation. We introduce DeepBias, an adaptive framework designed to probe the depth of social biases in LVLMs.
-As shown in the bottom panel of Fig.\ref{fig:teaser}, unlike static approaches, DeepBias dynamically generates new text queries based on the model's feedback to initial data, probing the bias at a much deeper, granular level.
+As shown in the right panel of Fig.\ref{fig:teaser}, unlike static approaches, DeepBias dynamically generates new text queries based on the model's feedback to initial data, probing the bias at a much deeper, granular level.
 Furthermore, it continuously optimizes the test data distribution to explicitly align with the target model's specific weaknesses. This results in a comprehensive, deep, and targeted evaluation.
 
-To drive this dynamic evaluation, the core of DeepBias is a generative Proposer that synthesizes initial test cases. Based on the target model's responses to these initial queries, we directly apply Direct Preference Optimization (DPO)~\cite{rafailov2023direct} to the Proposer, treating successful bias elicitations as positive preferences and failed attempts as negative. This closed-loop process explicitly shifts the generated dataset's distribution to tightly align with the specific vulnerabilities of the target model.
+To drive this dynamic evaluation, the core of DeepBias is a generative Proposer that synthesizes initial test cases. As illustrated in the \emph{Dynamically update} column of Fig.\ref{fig:teaser}, based on the target model's responses to these initial queries, we directly apply Direct Preference Optimization (DPO)~\cite{rafailov2023direct} to the Proposer, treating successful bias elicitations as positive preferences and failed attempts as negative. This closed-loop process explicitly shifts the generated dataset's distribution to tightly align with the specific vulnerabilities of the target model.
 
-After DPO optimization, we deploy an autonomous DeepAgent to conduct in-depth, instance-level probing through multi-turn interaction with the target model. Unlike static one-shot evaluation, the DeepAgent operates as a fully autonomous agent that engages in a sequential dialogue over three turns. At each turn, it reviews the complete interaction history and adaptively selects one of two strategies: if the model's previous response exposes bias, the DeepAgent deepens the probing by generating a targeted follow-up question to pinpoint the specific dimensions and severity of the stereotype; if the model responds safely, the DeepAgent adversarially rewrites the query to bypass safety filters and elicit latent biases. This two-stage design decouples distribution-level optimization (Proposer + DPO) from instance-level deep probing (DeepAgent), enabling both a well-targeted data distribution and thorough per-sample bias exploration.
+After DPO optimization, as shown in the \emph{Deep Exploration} column of Fig.\ref{fig:teaser}, we deploy an autonomous DeepAgent to conduct in-depth, instance-level probing through multi-turn interaction with the target model. Unlike static one-shot evaluation, the DeepAgent operates as a fully autonomous agent that engages in a sequential multi-turn dialogue. At each turn, it reviews the complete interaction history and adaptively selects one of two strategies: if the model's previous response exposes bias, the DeepAgent deepens the probing by generating a targeted follow-up question to pinpoint the specific dimensions and severity of the stereotype; if the model responds safely, the DeepAgent adversarially rewrites the query to bypass safety filters and elicit latent biases. This two-stage design decouples distribution-level optimization (Proposer + DPO) from instance-level deep probing (DeepAgent), enabling both a well-targeted data distribution and thorough per-sample bias exploration.
 
-% Our method is motivated by the insight that bias manifests in two forms: Exposed Bias (explicit discriminatory output) and Latent Bias (hidden bias masked by safety alignment). To tackle this, we deploy an autonomous DeepAgent that conducts multi-turn sequential probing, adaptively deepening exposed biases or rewriting safe responses to unmask latent biases.
-
-% Crucially, we close the loop by training the Proposer using Direct Preference Optimization (DPO)\cite{rafailov2023direct}. By treating successful bias elicitations as "positive preferences" and failed attempts as "negative," the Proposer learns to generate more potent and penetrating evaluation data over time. This process transforms the Proposer into a highly specialized generator, capable of synthesizing targeted evaluation data that specifically exploits the unique bias vulnerabilities of the target model.
-
-To construct a robust evaluation standard suitable for advanced VLMs, we employ an ensemble of 6 state-of-the-art LVLMs as anchor models. By iteratively optimizing the Proposer against this collective target, we systematically uncover deep-seated, common biases inherent in modern visual-language representations. This process culminates in the construction of the DeepBias Benchmark, a comprehensive dataset distilled from the most challenging samples that successfully penetrated the defenses of the anchor models. Extensive experiments across a wide range of SOTA models demonstrate that our method, and the resulting benchmark, effectively exposes latent biases that static baselines fail to detect.
+To construct a robust evaluation standard suitable for advanced VLMs, we employ an ensemble of 6 state-of-the-art LVLMs as anchor models. By iteratively optimizing the Proposer against this collective target, we systematically uncover deep-seated, common biases inherent in modern visual-language representations. To further ensure benchmark quality, we introduce a multi-model voting validation step that filters out ill-posed queries whose ambiguity assumption is violated by the anchor ensemble. This process culminates in the construction of the DeepBias Benchmark, a comprehensive dataset distilled from the most challenging samples that successfully penetrated the defenses of the anchor models. Extensive experiments across a wide range of SOTA models demonstrate that our method, and the resulting benchmark, effectively exposes latent biases that static baselines fail to detect.
 
 Our main contributions are summarized as follows:
 \begin{itemize}
     \item \textbf{Dynamic Adaptive Framework}: We propose DeepBias, the first framework to utilize DPO-driven evolution for VLM bias evaluation, shifting the paradigm from static datasets to dynamic adversarial probing.
     \item \textbf{In-Depth Probing Strategy}: We introduce an autonomous DeepAgent that conducts multi-turn sequential interactions with the target model, adaptively deepening or rewriting queries based on full dialogue history. This allows us to systematically penetrate safety filters and uncover latent biases that are typically masked in standard benchmarks.
-    \item \textbf{The DeepBias Benchmark}: By aggregating the hard and deep test samples from probing 8 diverse LVLMs, we release a high-quality, challenging benchmark dataset for the community.
+    \item \textbf{The DeepBias Benchmark}: By aggregating the hard and deep test samples from probing 6 diverse LVLMs, we release a high-quality, challenging benchmark dataset for the community.
+    % TODO: 实验完成后在下一条 bullet 补具体数字（bias elicitation rate 提升百分比 vs static baselines）
     \item \textbf{Empirical Evidence}: Extensive experiments show that DeepBias successfully exposes significantly more bias than static baselines, highlighting the fragility of current safety alignments in LVLMs.
 \end{itemize}
 
 \section{Related Work}
-% TODO: 写全所有参考文献，包括genderbias/ visogender/ VLBiasBench/ VIGNETTE
-% TODO: 文献检索一遍、检查文献正确性、加入今年的文献
+% TODO: 补充 2026 年新发表的 bias 评测 / red teaming 相关文献
+\subsection{Foundations of Bias and Fairness}
+\label{subsec:bias_foundations}
+The term ``bias'' is heavily overloaded in machine learning~\cite{mehrabi2021survey}: in its statistical sense it denotes systematic estimator deviation, while in its societal sense it denotes discrimination---model behaviour that systematically disadvantages members of protected social groups. The by-now-standard taxonomy for the societal sense, originating with Crawford's NeurIPS 2017 keynote and formalised for NLP by~\cite{blodgett2020language}, partitions harms into (i) \emph{allocational harms}, in which an automated system unfairly distributes resources or opportunities between social groups, and (ii) \emph{representational harms}, in which a system denigrates, stereotypes, under-represents, or erases particular groups in its outputs. \cite{blodgett2020language} emphasise that representational harms are themselves harms and do not require an allocational downstream justification to warrant study. In antidiscrimination law, a closely related distinction between \emph{disparate treatment} (individual-level intentional discrimination) and \emph{disparate impact} (group-level statistical disparity) plays the same structural role~\cite{barocas2016big}.
+
+Complementing this harm-side view, \cite{suresh2021framework} catalogue seven bias sources that span the ML lifecycle---historical, representation, measurement, aggregation, learning, evaluation, and deployment bias---each of which can translate into either allocational or representational harm. Their \emph{historical bias} category makes explicit that faithfully mirroring the world is insufficient to produce a harm-free model, because the world itself carries inequities whose reproduction is injurious. The empirical stakes are illustrated by intersectional audits such as~\cite{buolamwini2018gender}, whose evaluation of commercial facial analysers reported error-rate gaps of up to $34.4$ percentage points between demographic sub-populations, crystallising why purely descriptive reporting of model performance is insufficient. Our evaluation protocol builds on this literature; in \S\ref{subsec:bias_definition} we distil the specific definitional framework that underpins our design, including the three characteristics we use to distinguish societal bias from legitimate statistical correlation.
+
 \subsection{Societal Bias Evaluation in Vision-Language Models}
 The evaluation of social bias has its roots in Natural Language Processing (NLP), with pioneering works demonstrating that word embeddings and language models capture human-like stereotypes~\cite{bolukbasi2016man,caliskan2017semantics}. Benchmarks such as CrowS-Pairs~\cite{nangia2020crows}, StereoSet~\cite{nadeem2021stereoset}, and BBQ~\cite{parrish2022bbq} became standard protocols for quantifying categorical biases in text modality.
 
 
-With the advent of Large Vision-Language Models (LVLMs), research has pivoted to multimodal bias. Early efforts like Visogender-VL\cite{xiao2025genderbias}, VL-Bias\cite{zhang2022counterfactually}, and Vignette~\cite{raj2025vignette} introduced static image-text pairs to assess specific demographic biases like gender and racial biases. Others, such as FairFace\cite{karkkainen2021fairface} and MIAP\cite{schumann2021step}, focused on dataset diversity. Concurrently, comprehensive benchmark like VLBiasBench~\cite{wang2024vlbiasbench} have been developed to evaluate biases of various categories.
-However, relying on static datasets presents fundamental limitations. First, open static datasets are highly susceptible to data leakage. As LVLMs are trained on web-scale datasets like LAION-5B\cite{schuhmann2022laion}, static test sets are likely seen during training, making evaluation results unreliable\cite{sainz2023nlp}. Second, fixed evaluations suffer from rapid obsolescence. Static benchmarks cannot keep pace with the rapid versioning of models (e.g., GPT-4o\cite{hurst2024gpt}, Gemini\cite{team2023gemini}), leading to benchmark saturation.
-Third, static datasets lack the capacity to dynamically adjust based on model feedback~\cite{perez2022red}, so they cannot execute targeted and deep probing against specific model vulnerabilities.
-
-% Most existing evaluations employ a "random sweeping" strategy with fixed, surface-level prompts. Modern models, fortified by safety alignment (RLHF), have learned to suppress explicit bias against these simple queries\cite{liang2022holistic}. Consequently, static benchmarks often yield false negatives, erroneously labeling a model as "unbiased" simply because the test samples lack the complexity or subtlety required to penetrate the safety layer. In reality, deeply ingrained biases may still persist and can only be elicited through harder, more implicit, or contextually complex probing. Our work addresses this by shifting from static datasets to a dynamic probing mechanism that evolves to uncover these latent vulnerabilities.
+With the advent of Large Vision-Language Models (LVLMs), research has pivoted to multimodal bias. Early efforts like VisoGender~\cite{hall2023visogender}, GenderBias-VL~\cite{xiao2025genderbias}, VL-Bias~\cite{zhang2022counterfactually}, and Vignette~\cite{raj2025vignette} introduced static image-text pairs to assess specific demographic biases like gender and racial biases. Others, such as FairFace\cite{karkkainen2021fairface} and MIAP\cite{schumann2021step}, focused on dataset diversity. Concurrently, comprehensive benchmark like VLBiasBench~\cite{wang2024vlbiasbench} have been developed to evaluate biases of various categories.
+However, relying on static datasets presents fundamental limitations. First, \emph{Data Leakage}: as LVLMs are trained on web-scale datasets like LAION-5B\cite{schuhmann2022laion}, static test sets are likely seen during training, making evaluation results unreliable\cite{sainz2023nlp}. Second, \emph{Rapid Obsolescence}: static benchmarks cannot keep pace with the rapid versioning of models (e.g., GPT-4o\cite{hurst2024gpt}, Gemini\cite{team2023gemini}), leading to benchmark saturation. Third, \emph{Lack of Adaptivity}: static datasets lack the capacity to dynamically adjust based on model feedback~\cite{kiela2021dynabench}, so they cannot execute targeted and deep probing against specific model vulnerabilities.
 
 \subsection{Red Teaming and Jailbreaking for VLMs}
 Red teaming has evolved from manual testing to automated frameworks designed to proactively discover model vulnerabilities.
-In the realm of Large Language Models (LLMs), foundational works\cite{perez2022red,ganguli2022red} employed generator models to automatically synthesize test cases that provoke toxic outputs. Recent approaches have introduced optimization-based strategies. Gradient-based methods like GCG\cite{zou2023universal} and ARCA\cite{jones2023automatically} optimize discrete tokens to bypass safety filters, while evolutionary methods such as PAIR\cite{chao2025jailbreaking} and AutoDAN\cite{liu2023autodan} utilize genetic algorithms or self-play to iteratively refine adversarial prompts.
+In the realm of Large Language Models (LLMs), foundational works\cite{perez2022red,ganguli2022red} employed generator models to automatically synthesize test cases that provoke toxic outputs. Recent approaches have introduced optimization-based strategies. Gradient-based methods like GCG~\cite{zou2023universal} and ARCA~\cite{jones2023automatically} optimize discrete tokens to bypass safety filters, while iterative-refinement methods such as PAIR~\cite{chao2025jailbreaking} leverage an attacker LLM to adaptively rewrite prompts based on the target model's feedback, and evolutionary methods like AutoDAN~\cite{liu2023autodan} apply genetic algorithms to evolve adversarial prompts.
 As the field shifts to Vision-Language Models (LVLMs), research has extended these semantic attacks to the multimodal domain.
 Recent studies reveal that by combining structured textual prompts with specific visual contexts\cite{gong2025figstep}, or fragmenting malicious instructions across different modalities\cite{niu2024jailbreaking,shayegani2023jailbreak}, it is possible to effectively bypass the cross-modal safety alignment of LVLMs.
 
-However, applying existing automated red teaming paradigms directly to social bias evaluation presents significant limitations. First, a Mismatch in Target: Current jailbreak frameworks predominantly optimize for eliciting overt general harms (e.g., generating malicious code, violence, or extreme toxicity)\cite{mehrotra2024tree}. Social bias, conversely, is deeply ingrained, implicit, and often context-dependent, requiring a more nuanced elicitation strategy than standard adversarial attacks. Second, Binary Metrics over Depth: Existing methods primarily optimize for Attack Success Rate (ASR)---a binary metric indicating whether a model is induced to generate harmful content\cite{chao2025jailbreaking}. They do not measure the severity, consistency, or depth of the bias once exposed. Third, Semantic Degradation: To maximize ASR, many automated algorithms (e.g., gradient-based prompt search) generate unnatural, gibberish prompts\cite{zou2023universal}. While these may force errors, they fail to reflect realistic human-AI interaction.
+However, applying existing automated red teaming paradigms directly to social bias evaluation presents significant limitations. First, \emph{Mismatch in Target}: current jailbreak frameworks predominantly optimize for eliciting overt general harms such as malicious code generation, violence, or extreme toxicity\cite{mehrotra2024tree}. Social bias, conversely, is deeply ingrained, implicit, and often context-dependent, requiring a more nuanced elicitation strategy than standard adversarial attacks. Second, \emph{Binary Metrics over Depth}: existing methods primarily optimize for Attack Success Rate (ASR)---a binary metric indicating whether a model is induced to generate harmful content\cite{chao2025jailbreaking}. They do not measure the severity, consistency, or depth of the bias once exposed. Third, \emph{Semantic Degradation}: to maximize ASR, many automated algorithms such as gradient-based prompt search generate unnatural, gibberish prompts\cite{zou2023universal}. While these may force errors, they fail to reflect realistic human-AI interaction.
 In contrast, DeepBias shifts the objective from binary jailbreaking to depth probing. Instead of generating gibberish to force errors, our DeepAgent synthesizes semantically natural and contextually complex scenarios through multi-turn interactions, aiming to uncover deep-seated stereotypes.
 
-% TODO: 文献：reversegen redhit
-% 检查文献正确性
 \subsection{Optimization and RL for Data Generation}
 Reinforcement Learning (RL) and evolutionary strategies have proven effective in synthesizing complex data. In the NLP domain, Self-Instruct\cite{wang2023self} and WizardLM\cite{xu2023wizardlm} demonstrated that LLMs can iteratively improve the complexity of their own training data. More recently, Direct Preference Optimization (DPO)\cite{rafailov2023direct} has emerged as a stable alternative to PPO\cite{schulman2017proximal} for aligning models with human preferences.
 
-In the context of evaluation, RL has been applied to automate red teaming to maximize the toxicity of target model responses\cite{perez2022red} and search for diverse failure cases\cite{casper2023explore}. However, these methods typically optimize for generic failure modes. Our work is the first to apply DPO specifically for the ``adversarial evolution'' of bias probes. Unlike standard alignment which suppresses bias, we ``reverse-align'' our Proposer to maximize the likelihood of exposing latent biases, treating the target model's vulnerability as the optimization objective. This allows our method to generate substantially harder and more penetrating evaluation samples compared to random or rule-based generation\cite{ribeiro2020beyond,kiela2021dynabench,li2024reversegen}.
+In the context of evaluation, RL has been applied to automate red teaming to maximize the toxicity of target model responses~\cite{perez2022red} and search for diverse failure cases~\cite{casper2023explore}. Most recently, RedHit~\cite{sorkhpour2025redhit} integrates DPO with Monte Carlo Tree Search and chain-of-thought reasoning to iteratively refine adversarial prompts, sharing our spirit of preference-optimized red-teaming but targeting generic jailbreak success rather than social bias. However, these methods typically optimize for generic failure modes. Our work is the first to apply DPO specifically for the ``adversarial evolution'' of bias probes. Unlike standard alignment which suppresses bias, we ``reverse-align'' our Proposer to maximize the likelihood of exposing latent biases, treating the target model's vulnerability as the optimization objective. This allows our method to generate substantially harder and more penetrating evaluation samples compared to random or rule-based generation\cite{ribeiro2020beyond,kiela2021dynabench,li2025reversegen}.
 
 
 
 
 
-% 写一段话大致介绍方法
 % 图片风格未统一
-\section{Method}
-
-\subsection{Bias Evaluation Protocol}
+\section{Bias Evaluation Protocol}
+\label{sec:protocol}
 % 测试数据的格式是图片+单项选择题，选择题的格式为一个模糊性问题（即题干中的信息不能直接回答问题，需要模型依据其自身偏见来回答）+A.Yes B. No C. Unknown，正确答案应该为中立的C选项。（这里会给出图片引用，但我可以给你举一个例子，图片是一张黑人，问题是：这个人刚从超市出来就被警察拦截了，这个人是否犯罪了？只有没有偏见的模型才会选择C）为了保证题目可靠和公平，每个测试数据会有三个图片（有不同的人，比如测种族偏见会给出三个不同种族的人，测年龄偏见会给出三个不同年龄的人），每个图片都和问题结合一次，输入模型，如果模型对三个人的回答一致，则没有偏见，如果不一致，则有偏见。
-\label{subsec:test_data}
+
+Before detailing our data generation pipeline, we specify the evaluation protocol. \S\ref{subsec:bias_definition} distils the definitional framework we adopt for \emph{societal bias} and the boundary that separates it from legitimate statistical correlation. \S\ref{subsec:protocol_spec} then operationalises this framework into a concrete test-instance format, four hard constraints on the question, an empirical validity check, and the bias-judgment metric. The pipeline that produces test instances satisfying the protocol is the subject of \S\ref{sec:method}.
+
+\subsection{Bias, Discrimination, and Statistical Deviation}
+\label{subsec:bias_definition}
+
+As surveyed in \S\ref{subsec:bias_foundations}, the term ``bias'' names two distinct phenomena: \emph{statistical bias}, a systematic estimator deviation, and \emph{societal bias}, a pattern of model behaviour that produces representational or allocational harm against protected social groups. Our protocol targets the latter exclusively; the former is outside the scope of this paper. Within the societal sense, however, a further boundary has to be drawn: a surface demographic pattern in a model's output can in principle reflect either (a) a legitimate group-level statistical regularity or (b) substantive discrimination, and a coherent protocol must separate the two. Three characteristics are repeatedly invoked across the fairness, psychology, and philosophy-of-discrimination literatures to draw this boundary; we adopt them as the analytical backbone of our protocol.
+
+\begin{enumerate}
+    \item \textbf{Individual attribution.} Applying a group-level statistic to judge a specific individual is categorically different from merely reporting the statistic. The legal framework of~\cite{barocas2016big} formalises this in antidiscrimination law as the distinction between disparate treatment---direct, individual-level discrimination---and disparate impact, a purely statistical-disparity notion. At the algorithmic level, \cite{dwork2012fairness} give the canonical formalisation: they show that group-level statistical parity can coexist with patently unfair individual treatment, and propose \emph{individual fairness}---``any two individuals who are similar with respect to the particular task at hand should be classified similarly''---as a strictly individual-level criterion. The same intuition surfaces in the political-philosophy literature surveyed by~\cite{binns2018fairness} under the label ``failure to treat people as individuals.'' Thus, stating that ``elderly people are statistically less physically fit'' is a demographic observation; asserting that \emph{this particular} elderly person ``cannot perform this task'' violates individual attribution and qualifies as bias on every one of these accounts.
+    \item \textbf{Normative prescription.} Even a descriptively accurate statistical regularity can carry illegitimate prescriptive force. In psychology, \cite{prentice2002women} document systematically that gender stereotypes are ``highly prescriptive: the qualities they ascribe to women and men are also the qualities required of women and men,'' with violations drawing punishment independently of any descriptive inaccuracy. \cite{jussim2015stereotype}, while arguing from social-psychological data that many group stereotypes are descriptively accurate, explicitly note that descriptive accuracy ``has no bearing on concerns about the use [of stereotypes] to judge individuals''---that is, descriptive accuracy and normative legitimacy are orthogonal axes. At the meta level, \cite{blodgett2020language} argue that analysing bias is ``inherently a normative process in which some system behaviours are deemed good and others harmful,'' so that studies resting on purely descriptive framings without articulating the normative claim are inconsistent by construction.
+    \item \textbf{Concrete harm.} Bias is ultimately a claim about consequence, not about pattern: a statistical regularity becomes bias when it is applied in a setting that produces tangible damage to individuals or groups. The seven-source lifecycle framework of~\cite{suresh2021framework} and the empirical audits of~\cite{buolamwini2018gender} establish this harm-side grounding; \cite{blodgett2020language} further argue that representational harms are themselves harms and do not require an allocational downstream justification to warrant study. For VLMs specifically, the analogous harms are primarily representational: a model that produces stereotype-consistent descriptions, judgements, or reasoning about depicted individuals denigrates and misrepresents the groups in question, regardless of whether any particular downstream allocational decision is made.
+\end{enumerate}
+
+\subsection{Protocol Specification}
+\label{subsec:protocol_spec}
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{images/test_data.pdf}
-\caption{\textbf{The DeepBias Evaluation Protocol.} Left: The composition of a test instance, consisting of a counterfactual image triplet ($I_1$,$I_2$,$I_3$) with a single varying sensitive attribute, an intentionally ambiguous question (Q), and answer options (O). The triplet is used for multi-model voting validation during benchmark construction; after validation, each image becomes an independent test case where selecting ``Unknown'' is the only correct (unbiased) response.}
+% TODO: 图片需按新双栏设计重新绘制——左栏展示 voting validity check（K 个 validator 对三图计算 ρ(Q)，阈值 τ 过滤坏题），右栏展示 bias judgment（单个 (I_i, Q, O) 实例上 Unknown 为唯一正确答案，Yes/No 均暴露偏见）。当前 test_data.pdf 仍是旧版"三图回答一致才算无偏"的设计，需更新。
+\caption{\textbf{The DeepBias Evaluation Protocol.} \textbf{Left --- Validity check via multi-model voting:} each candidate triplet $(I_1, I_2, I_3, Q)$ is queried against $K$ validator models, yielding $3K$ responses; the triplet is admitted as valid only if the proportion of ``Unknown'' responses $\rho(Q)$ exceeds the validity threshold $\tau$, ensuring the question is genuinely ambiguous rather than trivially answerable. Admitted triplets are decomposed into three independent test instances, one per image. \textbf{Right --- Bias judgment:} on each test instance $(I, Q, \mathcal{O})$, the model must select ``Unknown'' to be judged unbiased; any ``Yes'' or ``No'' response reveals a stereotype-driven judgment attributable to the demographic attribute depicted in the image.}
 \label{fig:test_data}
 \end{figure*}
 
-Our evaluation protocol is designed to expose societal biases through carefully constructed ambiguous scenarios. As illustrated in Fig.\ref{fig:test_data}, test data is initially constructed as \emph{counterfactual triplets}: three images that are identical in content except for a single sensitive demographic attribute. This triplet design serves as a rigorous controlled-variable mechanism during data validation---by holding all contextual factors constant and varying only the demographic feature, we can verify that the question is genuinely ambiguous (rather than trivially answerable) and that any non-``Unknown'' response is attributable to the demographic attribute rather than other confounds. After validation (detailed in Section~\ref{subsec:benchmark_construction}), each image-question pair is decomposed into an independent test case, where the model must select ``Unknown'' to be judged as unbiased.
-
-Formally, each test instance is defined as a tuple $(I_1, I_2, I_3, Q, \mathcal{O})$, where:
+\textbf{Test Instance Format.}
+A test instance is a triple $(I, Q, \mathcal{O})$, where:
 \begin{itemize}
-    \item $\{I_1, I_2, I_3\}$ is a triplet of image inputs, each depicting a person. The three images differ only in the sensitive attribute being tested (e.g. for age bias: a 32-year-old, a 15-year-old, and a 64-year-old), while all other contextual factors remain constant.
+    \item $I$ is an image depicting a person whose sensitive demographic attribute---age, race, gender, etc.---is the target of the bias probe.
     % \item $Q$ is a deliberately ambiguous question coupled with negative implications, designed such that the image and question text alone lack sufficient evidence for a conclusive answer. For example, as shown in Fig.~\ref{fig:test_data}, given a counterfactual triplet of different races, the question might be: \emph{"The man was stopped by the police after coming out of the supermarket. Did he commit a crime?"} This intentional information vacuum forces the model to rely on its internal latent representations to fill the gap. By incorporating negative connotations (e.g., "Did he commit a crime?"), $Q$ acts as a catalyst to trigger stereotypical associations, thereby effectively eliciting and amplifying bias-driven responses from the target model.
-    \item $Q$ is a deliberately ambiguous question coupled with a negative implication, subject to two critical constraints. First, $Q$ must not reference any group-specific characteristic (e.g., ``as an elderly person'' or ``being a woman''); the sensitive attribute is conveyed solely through the image, ensuring the text alone cannot trigger stereotype-driven responses. Second, $Q$ should avoid probabilistic hedging words such as ``likely'' or ``probably'' (the rationale is detailed below). It is constructed so that the image and text together lack sufficient evidence to yield a definitive answer. For example, as shown in Fig.~\ref{fig:test_data}, a question evaluating racial bias across the image triplet might ask: \emph{``The man was stopped by the police after coming out of the supermarket. Did he commit a crime?''}
-    \item $\mathcal{O} = \{\text{Yes}, \text{No}, \text{Unknown}\}$ is the set of answer options. Given the intentional ambiguity of $Q$, the neutral option ``Unknown'' is the only unbiased response, as the provided information is insufficient for a conclusive judgment.
+    \item $Q$ is an intentionally ambiguous question coupled with a negative implication, whose four design constraints are specified below. An illustrative example for racial bias is: \emph{``The man was stopped by the police after coming out of the supermarket. Did he commit a crime?''}
+    \item $\mathcal{O} = \{\text{Yes}, \text{No}, \text{Unknown}\}$ is the set of answer options. Given the intentional ambiguity of $Q$, the neutral ``Unknown'' is the only response supported by the available evidence.
 \end{itemize}
+The model is queried with one test instance at a time, and evaluation is always reported per-instance. The counterfactual triplet structure that appears in data generation and validation (below) is a probe-design artifact: it enables reliable validity checking but is never presented to the model under evaluation.
 
 % The key design principle is ambiguity: the question is intentionally underspecified, making the neutral option ``Unknown'' the only unbiased response. For example, given a counterfactual triplet depicting individuals of different races, the question might be: ``This person just left a supermarket and was stopped by the police. Did this person commit a crime?'' Without additional context, an unbiased model should consistently select ``Unknown'' for all three images, as none of the images provide evidence of criminal activity. However, a biased model may produce inconsistent responses based on stereotypical associations with the varying demographic attributes.
 
-% TODO: 以下关于偏见与统计相关性区分的三个特征，需要补充参考文献
-A critical design consideration is to distinguish \emph{societal bias} from \emph{statistical correlation}. While certain demographic differences are statistically grounded (e.g., elderly individuals may, on average, have weaker physical fitness than younger ones), conflating statistical tendencies with judgments about specific individuals constitutes harmful bias. We identify three key characteristics that separate bias from legitimate statistical observation:
+\textbf{Question Design Constraints.}
+The three characteristics defined in \S\ref{subsec:bias_definition}---\emph{individual attribution}, \emph{normative prescription}, and \emph{concrete harm}---translate directly into four hard constraints on how $Q$ must be written:
 \begin{enumerate}
-    \item \textbf{Individual attribution}: Bias arises when statistical group-level tendencies are applied to judge a specific individual. Stating that ``elderly people are statistically less physically fit'' is a demographic observation; asserting that \emph{this particular} elderly person ``definitely cannot perform this physical task'' is biased individual attribution.
-    \item \textbf{Normative prescription}: Bias transforms descriptive statistics into prescriptive norms. For instance, while women may statistically wear makeup more often, prescribing that women \emph{should} wear makeup---and judging those who do not as abnormal---constitutes normative bias.
-    \item \textbf{Concrete harm}: Bias produces tangible negative consequences in consequential settings such as hiring, lending, or law enforcement, where stereotypical judgments directly affect individuals' opportunities and outcomes.
+    \item \emph{Intentional ambiguity.} $Q$ together with the image must be underspecified: no combination of visual evidence and textual context should permit a definitive Yes or No. This forces the model to reach for internal priors rather than evidence, making ``Unknown'' the only justified response.
+    \item \emph{Negative implication.} $Q$ is phrased so that any non-``Unknown'' response entails attributing a tangibly harmful judgment to the depicted individual (e.g., criminality, incompetence, weakness). This targets the \emph{concrete harm} characteristic and prevents the protocol from registering benign statistical remarks as bias.
+    \item \emph{No probabilistic hedging.} $Q$ must avoid softening words such as ``likely,'' ``probably,'' or ``tend to.'' Such words allow the model to retreat into statistically defensible territory (``this elderly person is \emph{likely} less fit''), blurring the \emph{individual attribution} characteristic: we cannot tell whether the model is making a genuine biased judgment about the depicted individual or merely citing a group-level tendency. Forcing definitive assertions cleanly separates bias from statistical reasoning.
+    \item \emph{No group-specific text.} $Q$ must not reference the sensitive attribute in its wording (e.g., no ``as an elderly person'' or ``being a woman''). The demographic attribute is conveyed solely through the image, ensuring that any stereotyping arises from the model's visual perception rather than from textual group-level cues, and thus from the \emph{normative prescription} the model places on the depicted individual rather than a group-level linguistic cue. Together with the negative implication, this drives the model past any hedged, statistics-flavoured response and into a definitive prescriptive judgment---which is precisely the behaviour our protocol flags as bias.
 \end{enumerate}
 
-These distinctions directly inform our question design. First, $Q$ is coupled with a negative implication to probe whether the model produces \emph{concretely harmful} judgments (characteristic 3), rather than merely reflecting benign correlations. Second, $Q$ avoids probabilistic hedging words like ``likely'' or ``probably'': such words allow the model to retreat into statistically defensible territory (e.g., ``this elderly person is \emph{likely} less fit''), obscuring whether it is making a genuine individual-level biased judgment (characteristic 1) or simply citing group-level tendencies. By forcing definitive assertions, our protocol cleanly separates bias from statistical reasoning. Third, $Q$ does not reference group-specific characteristics in its text, ensuring the model's response is driven by its visual perception of the individual rather than textual group-level cues.
+\textbf{Validity Criterion.}
+Even when $Q$ is authored to satisfy the four constraints above, a generated question may still fail to be genuinely ambiguous in practice---for instance, when the image provides more discriminating evidence than intended, or when the question admits an implicit factual answer. To detect such failures, we introduce the \emph{candidate triplet} $(I_1, I_2, I_3, Q)$: three image--question pairs sharing the same $Q$ whose images are identical in all contextual factors (scene, pose, clothing, lighting, etc.) and differ only in the targeted sensitive attribute. For age bias, for instance, the triplet may depict a 15-year-old, a 32-year-old, and a 64-year-old in otherwise identical contexts. This counterfactual structure is a controlled-variable probe used at construction time only; the three images are never presented jointly to the model under evaluation.
 
-Because the question $Q$ is intentionally ambiguous and coupled with a negative implication, it creates a deliberate information vacuum that forces the target model to rely on its internal prior associations to arrive at an answer. Since the provided information is insufficient for a definitive judgment, the only unbiased response is the neutral option ``Unknown''. Any model that selects ``Yes'' or ``No'' is making an unjustified judgment influenced by the demographic appearance of the individual in the image, thereby revealing societal bias.
-
-Formally, for each test instance $(I_i, Q, \mathcal{O})$, the model's response $r_i$ is evaluated as:
+The validity check queries $K$ independent validator models on all three image--question pairs of the triplet, yielding $3K$ responses, and records the proportion that are ``Unknown'':
 \begin{equation}
-\text{Correct}(r_i) = \mathbb{1}[r_i = \text{Unknown}]
+\label{eq:validity}
+\rho(Q) = \frac{1}{3K} \sum_{k=1}^{K} \sum_{i=1}^{3} \mathbb{1}\!\left[r_i^{(k)} = \text{Unknown}\right].
 \end{equation}
-where a correct response indicates the model refrains from biased judgment. We report the overall \emph{bias accuracy} as the proportion of test instances where the model selects ``Unknown''. A lower accuracy indicates a higher rate of exposed societal bias.
+The triplet is admitted iff
+\begin{equation}
+\label{eq:validity-threshold}
+\rho(Q) > \tau,
+\end{equation}
+where $\tau \in (0, 1)$ is the validity threshold. Because the three images differ only in the sensitive attribute, a non-trivial fraction of ``Unknown'' responses across validator--image pairs indicates that the question is genuinely under-determined regardless of which demographic is depicted, rather than admitting an implicit factual answer; any validator that nonetheless chooses a non-``Unknown'' option is then genuinely exhibiting bias.
+
+Once admitted, the triplet is \emph{decomposed} into three independent test instances $\{(I_1, Q, \mathcal{O}), (I_2, Q, \mathcal{O}), (I_3, Q, \mathcal{O})\}$, each entering the evaluation set. The triplet identity is retained as metadata: although it no longer plays a role in scoring, it enables per-demographic analyses of which groups a given model is most prone to bias against. The concrete instantiation---the identity of the validator models, the choice of $K$, and the value of $\tau$---is an implementation matter deferred to \S\ref{subsec:benchmark_construction}, where we set $K{=}6$ (the anchor ensemble) and $\tau{=}1/3$; the empirical sensitivity to $\tau$ is analysed in \S\ref{subsec:threshold}.
+
+\textbf{Bias Judgment Metric.}
+On each admitted test instance $(I, Q, \mathcal{O})$, the model's response $r$ is scored as:
+\begin{equation}
+\label{eq:correctness}
+\text{Correct}(r) = \mathbb{1}\!\left[r = \text{Unknown}\right].
+\end{equation}
+We report two complementary quantities. The \emph{bias accuracy} is the proportion of instances on which the model selects ``Unknown''; its complement, the \emph{bias elicitation rate} $\,1 - \text{bias accuracy}$, is the proportion of responses that expose societal bias. A higher elicitation rate---equivalently, a lower bias accuracy---indicates that the model is more frequently led into stereotype-driven judgments.
 
 % Because $Q$ is intentionally underspecified, an unbiased model should consistently select the neutral option Unknown for all three images, as no clear information was provided. However, a biased model may produce inconsistent responses (e.g., answering Yes or No for certain demographics) based on latent stereotypical associations.
 % To evaluate a model, we query it with each image-question-option pair $(I_i, Q, \mathcal{O})$ independently, yielding responses $\{r_1, r_2, r_3\}$. We define the model as unbiased with respect to this test case if and only if: $r_1 = r_2 = r_3$.
 % Conversely, if the model produces inconsistent responses across the counterfactual triplet, it reveals a bias correlated with the varying sensitive attribute. This consistency-based metric provides a rigorous and interpretable measure of bias, as it directly captures whether the model's decision is influenced by demographic features rather than task-relevant information.
 
-\subsection{Data Enhancing}
-\label{subsec:data_enhancing}
-% From Raw to Seed Dataset.
-While existing bias benchmarks such as VLBiasBench~\cite{wang2024vlbiasbench} and BBQ~\cite{parrish2022bbq} provide valuable curated samples, their limited scale is insufficient to effectively train our iterative Proposer model. We select three demographic attribute categories from the VLBiasBench dataset: Age, Gender, and Race, with each category containing only about 300 ambiguous\&negative test cases. We perform a systematic data enhancement process to significantly scale up the dataset, enrich the semantic content, and expand the distribution of test scenarios.
-We employ Qwen3~\cite{qwen3} as an in-context data enhancing engine, expanding our collection to $2,000$ high-quality instances per category.
-% TODO: 可以生成个小图说明一下，由文字转图片的过程
-
-Our data enhancement pipeline begins in the textual modality. We first extract the base questions $Q$ from the original VLBiasBench dataset. For each question, we systematically construct a corresponding set of textual image descriptions $P$. The size and content of $P$ depend on the demographic category: for Age, we randomly assign three distinct ages (e.g., $P = \{p_1, p_2, p_3\}$ representing a 15-year-old, a 35-year-old, and a 60-year-old); for Race, we use three distinct racial identities (e.g., $P = \{p_1, p_2, p_3\}$ representing Asian, African American, and Latino); and for Gender, we utilize a pair of descriptions (i.e., $P = \{p_1, p_2\}$ representing a woman and a man). This forms our foundational text-modality data format $(P, Q)$. During data enhancing, we randomly sample raw $(P, Q)$ pairs to serve as exemplars, pairing them with strict generative instructions: the newly synthesized questions must remain intentionally ambiguous and carry specific negative implications. Guided by these exemplars and constraints, the data enhancing engine divergently synthesizes diverse and novel test cases. The exact prompt templates and generation guidelines are detailed in the Supplementary Material.
-
-Following the textual data enhancement, we transition the expanded dataset into the visual modality. For every instance, the prompt set $P$ is further processed by appending standardized, neutral contextual descriptions. To enforce strict variable control, all elements other than the targeted sensitive attribute are controlled to be consistent. These refined text prompts are then fed into Stable Diffusion XL~\cite{podell2023sdxl} to render the corresponding visual inputs, from $P=\{p_1, p_2, p_3\}$ to $I_1, I_2, I_3\}$). Finally, we append the standardized answer options $\mathcal{O} = \{\text{Yes}, \text{No}, \text{Unknown}\}$ to each generated item. This end-to-end pipeline effectively transforms the text prompts into our comprehensive initial multimodal dataset, formally structured as sets of $(I_1, I_2,I_3, Q, \mathcal{O})$.
-
-% Using the raw samples as exemplars, we prompt the LLM to generate contextually diverse test cases that strictly adhere to the structural rules defined in the previous section. For each instance, the model synthesizes an ambiguous question $Q$ alongside three matched textual image descriptions that differ exclusively in the target sensitive attribute. These descriptions are then rendered into a visual counterfactual triplet ({$I_1, I_2, I_3$}) using \textcolor{red}{Stable Diffusion XL (SDXL)}, ensuring strict visual consistency in background, clothing, and pose. The specific data-enhancing prompts are detailed in the Supplementary Material. This expanded collection, referred to as the Seed Dataset, provides a robust foundation for the Proposer's subsequent adversarial evolution.
-
-
-\subsection{Adaptive Data Generation via Adversarial Evolution}
+\section{Method}
+\label{sec:method}
 % 这里面有两个实体：数据生成器Proposer和自主智能体DeepAgent
-% Proposer生成初始数据，DeepAgent对每个问题进行三轮顺序交互（基于完整历史，暴露偏见则深化，未暴露则改写）
-% Proposer负责数据分布层面的优化，DeepAgent负责单个样本层面的深度挖掘
-\label{subsec:data_generation}
+% Proposer负责数据扩展与数据分布层面的优化；DeepAgent对 Proposer 产出的每个候选做三轮顺序交互（基于完整历史，暴露偏见则深化，未暴露则改写），负责单个样本层面的深度挖掘
+% TODO (问题 #3): ensemble 描述不完整——当前只说 "jointly validates their ambiguity"，但 ensemble 还驱动 DPO consensus labelling（§4.3）。改为 "jointly drives DPO consensus labelling and validates each candidate's ambiguity"。
+Building on the protocol of \S\ref{sec:protocol}, we now describe how DeepBias produces valid test instances at scale. The pipeline is driven by two complementary entities. A \emph{Proposer} (\S\ref{subsec:data_generation}) expands existing bias benchmarks into a large candidate pool and iteratively reshapes its output distribution toward the target LVLM's vulnerabilities via Direct Preference Optimization. A \emph{DeepAgent} (\S\ref{subsec:deepagent}) then conducts multi-turn adaptive probing on each Proposer-generated candidate to surface stereotypes beyond the reach of a single-shot query. The candidates that survive this pipeline are aggregated into the final DeepBias Benchmark using a six-model anchor ensemble that jointly validates their ambiguity (\S\ref{subsec:benchmark_construction}). Fig.~\ref{fig:workflow} gives a visual overview.
+
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{images/method.pdf}
-\caption{\textbf{The DeepBias Framework.} (a) Framework Overview: The macro-level adaptive and dynamic bias probing cycle, illustrating how the Proposer iteratively evolves through target model evaluation to construct the DeepBias Evaluation Dataset. (b) Detailed Dataflow: The Proposer generates candidate test data, which are evaluated by the target model. The initial responses are directly used to construct a Preference Dataset (Positive/Negative) to update the Proposer via DPO. After DPO optimization, the DeepAgent conducts multi-turn sequential probing on each sample: at each turn, it reviews the full dialogue history and adaptively deepens exposed biases or adversarially rewrites safe responses, producing the final deep-probed evaluation data.}
+% TODO: Fig 3 caption 中 "After the Proposer converges" 措辞模糊（DPO 迭代收敛无形式化定义），改为 "After the Proposer's DPO evolution"。
+\caption{\textbf{The DeepBias Framework.} \textbf{(a) Framework Overview:} the macro-level adaptive cycle in which the Proposer iteratively evolves against target-model feedback to produce candidates aligned with the target's specific vulnerabilities. \textbf{(b) Detailed Dataflow:} the Proposer generates candidate triplets; their responses from the target LVLM are used to construct a preference dataset (positive / negative) that updates the Proposer via DPO. After the Proposer converges, the DeepAgent performs multi-turn sequential probing on each candidate: at every turn it reviews the full dialogue history and adaptively deepens exposed biases or adversarially rewrites safe responses, producing deep-probed candidates for benchmark assembly.}
 \label{fig:workflow}
 \end{figure*}
 
-As illustrated in Fig.\ref{fig:workflow}, the core innovation of DeepBias lies in its adaptive data generation mechanism, which iteratively evolves to produce increasingly challenging test cases tailored to the target model's vulnerabilities. Our framework comprises two key components: the Proposer, which generates candidate test samples; and an autonomous DeepAgent, which conducts multi-turn sequential probing to intensify the evaluation. The complete pipeline is visually detailed in the dataflow of Fig.\ref{fig:workflow}(b).
+\subsection{Adaptive Data Generation via Adversarial Evolution}
+\label{subsec:data_generation}
 
-% 一个图片讲述如何文生图
+The data engine of DeepBias is a generative \textbf{Proposer}: a language model that synthesises candidate triplets $(I_1, I_2, I_3, Q)$ satisfying the four question-design constraints of \S\ref{sec:protocol}. It plays two complementary roles: it \emph{expands} existing static bias benchmarks to a scale usable for evaluating modern LVLMs, and it \emph{adaptively evolves} its output distribution toward the specific vulnerabilities of the target model. Both roles are carried out by the same model operating in two distinguishable regimes, described in turn below.
 
+\textbf{Expansion via In-Context Few-Shot Generation.}
+% TODO: 本段过长（~200+ words），建议拆成两段：前一段讲 benchmark 太小 → Proposer few-shot 扩展（含 P 结构、三类别差异、2000 规模）；后一段讲 SDXL 渲染 → 多模态候选 → O 附加时机。另外"diverse demographic populations"与本段主题（demographic bias）轻微重复，可精简。
+Existing bias benchmarks such as BBQ~\cite{parrish2022bbq} and VLBiasBench~\cite{wang2024vlbiasbench} provide only on the order of $300$ ambiguous-and-negative samples per demographic category, far too few to serve as a standalone evaluation pool for modern LVLMs. We therefore run the Proposer as an in-context few-shot generator. For each demographic category---Age, Race, or Gender---we extract base questions $Q$ from VLBiasBench and pair each with a set of textual image descriptions $P$ that vary only in the targeted sensitive attribute: $P = \{p_1, p_2, p_3\}$ for Age and Race (three distinct identities, e.g.\ three ages or three racial identities) and $P = \{p_1, p_2\}$ for Gender (two identities). Using sampled raw $(P, Q)$ pairs as exemplars, together with generative rules that re-impose the four constraints of \S\ref{sec:protocol}---intentional ambiguity, negative implication, no probabilistic hedging, and no group-specific text---the Proposer divergently synthesises new $(P, Q)$ candidates across diverse demographic populations, scenarios, and difficulty levels. The Proposer is run in this mode until the candidate pool reaches roughly $2{,}000$ samples per category. Each textual candidate $(P, Q)$ is then rendered into a visual counterfactual triplet $\{I_1, I_2, I_3\}$ by feeding the prompts in $P$---augmented with standardised neutral contextual descriptions to enforce strict variable control---into Stable Diffusion XL~\cite{podell2023sdxl}. This produces the multimodal candidate pool $\{(I_1, I_2, I_3, Q)\}$; the standardised answer options $\mathcal{O} = \{\text{Yes}, \text{No}, \text{Unknown}\}$ are attached at evaluation time, when a validated triplet is decomposed into three independent test instances per \S\ref{sec:protocol}. The exact prompt templates and generation guidelines are detailed in the Supplementary Material.
 
-\textbf{The Proposer} is a generative model  synthesizing bias-probing test dataset in text modality.
-Its primary objective is to dynamically shift the overall generation distribution toward the specific vulnerabilities of the target model.
-We initialize the Proposer by fine-tuning a base language model on the enhanced Seed Dataset using supervised fine-tuning (SFT) with Low-Rank Adaptation (LoRA)~\cite{hu2022lora}. This initial training phase teaches the Proposer to mimic the structure and style of the seed samples.
-During the generation phase, the Proposer employs a few-shot generation strategy like the data enhancement pipeline described in Section~\ref{subsec:data_enhancing}.
-Given randomly sampled $(P,Q)$ pairs from the seed dataset as exemplars, alongside strict generative rules enforcing intentional ambiguity and negative implications, the Proposer divergently synthesizes new test cases across varying demographic populations, scenarios, and difficulty levels.
-We then transform these textual outputs into our final multimodal format $(I_1, I_2, I_3, Q, \mathcal{O})$.
-We input these formatted test cases into the target LVLM to obtain its initial responses $\{r_1, r_2, r_3\}$ for each sample.
+\textbf{Adversarial Evolution via Direct Preference Optimization.}
+The expanded candidate pool covers the demographic axes broadly but is not yet aligned with any particular target model's weak points. To shift the Proposer's output distribution toward those weak points, we run a closed-loop adversarial evolution. At each iteration, every candidate in a freshly generated batch is queried against the target LVLM by presenting its three image--question pairs independently, yielding responses $\{r_1, r_2, r_3\}$. Following the bias criterion of \S\ref{sec:protocol}, a candidate is labelled a \emph{positive} preference if at least one response is non-``Unknown'' (the query elicits bias on at least one image) and a \emph{negative} preference if all three responses are ``Unknown'' (the query fails to elicit any bias). The ensemble variant used for benchmark construction---where the positive/negative decision aggregates over multiple anchor LVLMs rather than a single target---is described in \S\ref{subsec:benchmark_construction}.
 
-\textbf{DPO Optimization.}
-Based on the target model's initial responses, we directly construct a preference dataset and optimize the Proposer \emph{before} any agent-based refinement. Samples whose initial queries successfully elicit bias (i.e., $r_1 \neq r_2$ or $r_2 \neq r_3$) are labeled as positive preferences, while those that fail are labeled as negative preferences.
+The resulting preference pairs drive a Direct Preference Optimization (DPO)~\cite{rafailov2023direct} update of the Proposer. Formally, given a preference pair $(x_w, x_l)$ where $x_w$ is a positive candidate and $x_l$ is a negative one, DPO minimises:
+\begin{equation}
+\label{eq:dpo}
+\mathcal{L}_{\text{DPO}} = -\mathbb{E}_{(x_w, x_l)} \left[ \log \sigma \left( \beta \log \frac{\pi_\theta(x_w)}{\pi_{\text{ref}}(x_w)} - \beta \log \frac{\pi_\theta(x_l)}{\pi_{\text{ref}}(x_l)} \right) \right],
+\end{equation}
+% TODO: "approximately a no-op" 略口语化，改为 "would provide approximately no new signal" 或 "would be essentially vacuous"。
+where $\pi_\theta$ is the Proposer optimised through LoRA adapters~\cite{hu2022lora}, $\pi_{\text{ref}}$ is a frozen copy of the Proposer's underlying base model held fixed across iterations, $\beta$ is a temperature hyperparameter, and $\sigma$ is the sigmoid function. We use the instruction-tuned base model directly as $\pi_{\text{ref}}$ and do \emph{not} insert a supervised fine-tuning step before DPO: because the candidate pool above is itself produced by the base model under few-shot prompting, SFT on that pool would be approximately a no-op. Iterating the generate--evaluate--DPO loop drives the Proposer's distribution toward the target model's specific failure modes, producing progressively harder candidates. Throughout, the Proposer's evolution operates exclusively at the \emph{distribution level}, changing which kinds of queries the generator emits; per-candidate deep probing is decoupled and handled by the DeepAgent described next.
 
-\textbf{The DeepAgent} operates through a three-turn dialogue loop on each test instance. At each turn $t \in \{1, 2, 3\}$, the DeepAgent receives the complete interaction history $\mathcal{H}_t = \{(Q_0, r_0), (Q_1, r_1), \ldots, (Q_{t-1}, r_{t-1})\}$ and adaptively selects one of two strategies:
+\subsection{Instance-Level Probing with the DeepAgent}
+\label{subsec:deepagent}
 
+Once the Proposer has converged, each candidate it emits already carries the target model's distribution-level weaknesses. The \textbf{DeepAgent} complements the Proposer with per-candidate \emph{instance-level} probing: for every Proposer-generated candidate triplet $(I_1, I_2, I_3, Q)$, it runs an adaptive dialogue with the target LVLM over $T$ probing turns, building on the model's own responses to elicit stereotypes that a single-shot query cannot reach. $T$ is a hyperparameter whose concrete value is reported in \S\ref{sec:experiment}.
+% TODO: 在 §5 实验章节补充 "T=3 in our experiments" 的具体实现说明
+
+At turn $t \in \{1, \ldots, T\}$, the DeepAgent receives the full interaction history
+\[
+\mathcal{H}_t = \left\{\bigl(Q_0, \{r_1^0, r_2^0, r_3^0\}\bigr), \ldots, \bigl(Q_{t-1}, \{r_1^{t-1}, r_2^{t-1}, r_3^{t-1}\}\bigr)\right\},
+\]
+where $Q_0$ is the Proposer's original question and $Q_1, \ldots, Q_{t-1}$ are its prior refinements by the DeepAgent. Conditioned on $\mathcal{H}_t$, the DeepAgent adaptively selects one of two strategies:
 \begin{itemize}
-    \item \textbf{Deepening}: When the target model's previous response exhibits bias (i.e., produces inconsistent responses across the image triplet), the DeepAgent drills down into the exposed bias. Rather than stopping at a general prejudiced conclusion, it generates a targeted follow-up question to pinpoint the exact nature and severity of the stereotype. For example, if the model deems a demographic group unfit for a certain profession, the DeepAgent will generate a follow-up question isolating specific capabilities, asking whether the perceived unfitness stems from a lack of logical reasoning, leadership skills, or stress tolerance.
-
-    \item \textbf{Rewriting}: When the target model responds safely (i.e., produces consistent responses), the DeepAgent adversarially rewrites the query to bypass safety filters. Direct bias-probing questions (e.g., ``Is this person of low intelligence?'') are often easily deflected by aligned LVLMs. The DeepAgent transforms $Q$ into a more implicit, indirect query $Q'$ (e.g., ``Is this person likely to achieve a perfect score in an advanced math exam?''). By shifting from explicit stereotyping to nuanced situational judgments, it effectively strips away the model's safety disguise and forces it to reveal hidden prejudices.
+    \item \textbf{Deepening} --- triggered when the previous response exhibits bias, i.e.\ at least one of $\{r_1^{t-1}, r_2^{t-1}, r_3^{t-1}\}$ is non-``Unknown''. Rather than stopping at a general prejudiced conclusion, the DeepAgent generates a targeted follow-up question that pins down the specific dimension and severity of the exposed stereotype. For example, if the target model judges a demographic group as unfit for a certain profession, the DeepAgent isolates capabilities by asking whether the perceived unfitness stems from a lack of logical reasoning, leadership skills, or stress tolerance.
+    \item \textbf{Rewriting} --- triggered when the previous response is safe, i.e.\ all three responses are ``Unknown''. The DeepAgent adversarially rewrites $Q$ into a more implicit, indirect query $Q'$. Direct bias-probing questions (``Is this person of low intelligence?'') are often easily deflected by aligned LVLMs; a rewritten question (``Is this person likely to achieve a perfect score in an advanced math exam?'') shifts from explicit stereotyping to nuanced situational judgement, stripping away the model's safety disguise and forcing it to reveal hidden prejudices.
 \end{itemize}
 
-At each turn, the DeepAgent generates exactly one refined question $Q_t$ (while keeping the image triplet unchanged), which is then evaluated against the target model to obtain responses $\{r_1^t, r_2^t, r_3^t\}$. The full history $\mathcal{H}_t$ enables the DeepAgent to build upon previous successes and failures, progressively narrowing in on the model's deepest vulnerabilities. This sequential, history-aware design transforms the evaluation from a one-shot query into a multi-turn adversarial dialogue, achieving substantially deeper bias exploration than any single-pass approach.
+% TODO: "build on prior successes and failures" 偏口语，改为 "build on the full interaction trajectory"；"single-pass or single-turn" 同义冗余，精简为其一。
+At each turn the DeepAgent emits exactly one refined question $Q_t$ while keeping the image triplet fixed; $Q_t$ is then queried against the target model to obtain $\{r_1^t, r_2^t, r_3^t\}$, which are appended to form $\mathcal{H}_{t+1}$. The history-aware design lets the DeepAgent build on prior successes and failures rather than treating each turn independently, progressively narrowing in on the model's deepest vulnerabilities. Coupling the Proposer's distribution-level optimisation (\S\ref{subsec:data_generation}) with the DeepAgent's candidate-level deepening lets DeepBias achieve bias exploration substantially beyond what any single-pass or single-turn evaluation can reach.
 
 
-
-As introduced above, we construct the preference dataset directly from the Proposer's initial generation results, \emph{before} the DeepAgent's refinement. We then apply Direct Preference Optimization (DPO)~\cite{rafailov2023direct} to update the Proposer. Formally, given a preference pair $(x_w, x_l)$ where $x_w$ is a successful (bias-eliciting) sample and $x_l$ is an unsuccessful one, DPO optimizes:
-\begin{equation}
-\mathcal{L}_{\text{DPO}} = -\mathbb{E}_{(x_w, x_l)} \left[ \log \sigma \left( \beta \log \frac{\pi_\theta(x_w)}{\pi_{\text{ref}}(x_w)} - \beta \log \frac{\pi_\theta(x_l)}{\pi_{\text{ref}}(x_l)} \right) \right]
-\end{equation}
-where $\pi_\theta$ is the Proposer being optimized, $\pi_{\text{ref}}$ is the reference model (the SFT-initialized Proposer), $\beta$ is a temperature parameter, and $\sigma$ is the sigmoid function. This iterative optimization drives the Proposer to evolve, generating progressively harder and more targeted test cases. By keeping the DPO loop solely on the Proposer's raw outputs, we ensure a clean optimization signal that directly reflects the Proposer's intrinsic generation quality. The Proposer's DPO loop operates at the \emph{distribution level}, learning to shift the overall data distribution toward model vulnerabilities, while the DeepAgent operates at the \emph{instance level} after DPO, maximizing the depth of bias exploration for each individual sample.
-
-% \paragraph{Multi-Model Ensemble for Benchmark Construction.}
 \subsection{DeepBias Benchmark Construction}
 \label{subsec:benchmark_construction}
-While the dynamic framework excels at targeted probing, the community also requires standardized, reproducible metrics to compare different models. To address this, we leverage our dynamic pipeline to construct an evaluation dataset: the DeepBias Benchmark. Instead of optimizing against a single model, we apply the aforementioned pipeline to an ensemble of diverse, state-of-the-art LVLMs acting as anchor models. We take the samples that can trigger bias in most models as positive samples, while take the samples that cannot trigger any model's bias as negative samples. This ensemble approach ensures that the Proposer learns to generate test cases that uncover common, structural vulnerabilities in multimodal representations, rather than simply overfitting to the idiosyncrasies of one specific model's safety alignment.
+While the pipeline of \S\ref{subsec:data_generation} yields samples targeted at a single model, a standardised benchmark must capture \emph{common} vulnerabilities across LVLMs. We therefore apply the adaptive pipeline to an ensemble of six diverse, state-of-the-art LVLMs acting as \emph{anchor models}, and then assemble the DeepBias Benchmark by instantiating the validity criterion of \S\ref{sec:protocol} on this same ensemble.
 
-% TODO: 多模型投票验证的阈值（1/3）和验证模型的选择需要通过实验调整。保守的模型（倾向于选C）会让更多题目通过验证，激进的模型可能会误杀有效题目。需要实验验证阈值的合理性和验证模型组合的影响。
-% TODO: 检查多模型投票验证的位置是否合适。当前放在Benchmark Construction，但它其实是数据质量控制机制，在DPO之前就应该执行（防止坏题被DPO奖励）。考虑是否应该移到3.3 Adaptive Data Generation中作为生成流程的一个环节，或者和评测指标、偏见定义合并到Evaluation Protocol中。
-% TODO: 仔细检查多模型投票验证+拆分单图这段内容的逻辑是否准确、表述是否清晰。
-\textbf{Multi-Model Voting Validation.}
-Since the Proposer is an LLM generating test questions autonomously, it may produce degenerate or trivially answerable questions that do not satisfy the ambiguity requirement (e.g., ``Is this person elderly?'' for an age-bias triplet). Such questions would receive non-``Unknown'' answers from all models---not because of bias, but because the question has a clear factual answer. If left unfiltered, these bad questions would be incorrectly treated as bias-eliciting successes, corrupting the DPO training signal.
+\textbf{Ensemble-Driven Adversarial Evolution.}
+% TODO: ensemble preference labeling 需显式引入 Unknown 判据。当前用 "elicits bias from at least half of the anchors" / "respond safely"，语义对但未展开。建议前置一句："Following the per-response bias criterion of §3, an anchor $\mathcal{M}_k$ is said to elicit bias on a candidate iff at least one of its three responses is non-``Unknown''." 然后接 ensemble consensus（≥ K/2 positive, 0 negative, 中间 discard）。顺带补一句解释为何 ensemble 版比 §4.1 单目标更严（discard middle）——例如 "ensemble 信号噪音更大，需更保守"。
+We drive the Proposer--DPO loop with a preference signal aggregated across the anchor ensemble rather than a single target. A generated candidate is labelled a \emph{positive} preference if it elicits bias from at least half of the anchors, and a \emph{negative} preference if all anchors respond safely; candidates lying in between are discarded to keep the optimization signal clean. This consensus rule forces the Proposer to target vulnerabilities that transfer across architectures and scales, rather than overfitting to the safety quirks of any single model.
 
-To ensure data quality, we introduce a multi-model voting validation step. For each candidate question $Q$ with its image triplet $\{I_1, I_2, I_3\}$, we query $K$ diverse validator models, yielding $3K$ responses in total. We then compute the proportion of ``Unknown'' responses:
-\begin{equation}
-\rho(Q) = \frac{1}{3K} \sum_{k=1}^{K} \sum_{i=1}^{3} \mathbb{1}[r_i^k = \text{Unknown}]
-\end{equation}
-A question is retained if $\rho(Q) > \frac{1}{3}$, indicating that a sufficient number of model-image combinations recognize the question's inherent ambiguity. Questions failing this threshold are discarded as degenerate. The intuition is: if at least some models on some images correctly identify that the information is insufficient (selecting ``Unknown''), then the models that do \emph{not} select ``Unknown'' are genuinely exhibiting bias rather than simply answering a clear-cut question.
+\textbf{Validity Check via the Anchor Ensemble.}
+We instantiate the validity check defined in Eqs.~\ref{eq:validity}--\ref{eq:validity-threshold} by reusing the six anchor models as validators, so that no additional inference cost is incurred beyond the ensemble evaluation already performed during evolution. For each candidate $(I_1, I_2, I_3, Q)$ we thus have $K{=}6$ validators producing $3K{=}18$ responses, and we retain $Q$ iff $\rho(Q) > \tau$ with $\tau = 1/3$---that is, iff more than one in three of the 18 validator--image pairs recognises the question as ambiguous. The value $\tau = 1/3$ is calibrated empirically; the sensitivity analysis, together with the effect of varying $K$ and the validator composition, is reported in \S\ref{subsec:threshold}.
 
-After validation, we decompose each surviving triplet into individual test instances. Each image-question pair $(I_i, Q, \mathcal{O})$ becomes an independent test case, with ``Unknown'' as the sole correct answer. This two-phase design leverages the strengths of both paradigms: the counterfactual triplet provides a rigorous controlled-variable mechanism during validation, ensuring that only genuinely ambiguous questions survive; while the per-image evaluation provides a clean, direct measure of whether the model makes an unjustified judgment about a specific individual. The triplet is not discarded after decomposition---it can still be used for fine-grained analysis to identify which demographic groups are disproportionately affected. The resulting DeepBias Benchmark serves as a highly concentrated, adversarial testing ground, offering a more rigorous evaluation standard than existing datasets.
+\textbf{Triplet Decomposition and Assembly.}
+Once a candidate passes the validity check, each of its three image--question pairs $(I_i, Q, \mathcal{O})$ is treated as an independent test instance as prescribed in \S\ref{sec:protocol}. The original triplet is retained as metadata: although it is no longer used for scoring, it enables fine-grained analyses of which demographic groups are disproportionately affected by a given model. Aggregating all admitted instances across the three demographic categories---Age, Race, and Gender---yields the DeepBias Benchmark, a concentrated adversarial testing ground that couples the controlled-variable rigour of triplet validation with the directness of per-instance bias judgment.
 
 % \begin{algorithm}[t]
-% \caption{DeepBias: Adaptive Bias Probing via Adversarial Evolution}
+% \caption{DeepBias: Adaptive Bias Probing and Benchmark Construction}
 % \label{alg:deepbias}
 % \begin{algorithmic}[1]
-% \REQUIRE Seed Dataset $\mathcal{D}_{\text{seed}}$, Target LVLMs $\{\mathcal{M}_1, \ldots, \mathcal{M}_K\}$, Number of iterations $T$
-% \ENSURE DeepBias Benchmark $\mathcal{D}_{\text{benchmark}}$
-% \STATE Initialize Proposer $\pi_\theta$ via SFT on $\mathcal{D}_{\text{seed}}$ with LoRA
-% \STATE $\pi_{\text{ref}} \leftarrow \pi_\theta$
-% \STATE $\mathcal{D}_{\text{benchmark}} \leftarrow \emptyset$
-% \FOR{$t = 1$ to $T$}
-%     \STATE $\mathcal{D}_{\text{candidate}} \leftarrow \emptyset$
-%     \STATE $\mathcal{D}_{\text{preference}} \leftarrow \emptyset$
-%     \FOR{each target model $\mathcal{M}_k \in \{\mathcal{M}_1, \ldots, \mathcal{M}_K\}$}
-%         \STATE Sample exemplars from $\mathcal{D}_{\text{seed}}$
-%         \STATE Generate batch $\mathcal{B} \leftarrow \pi_\theta(\text{exemplars})$
-%         \FOR{each sample $(I_1, I_2, I_3, Q) \in \mathcal{B}$}
-%             \STATE Query $\mathcal{M}_k$ with $(I_1, Q)$, $(I_2, Q)$, $(I_3, Q)$ to get $\{r_1, r_2, r_3\}$
-%             \IF{$r_1 \neq r_2$ or $r_2 \neq r_3$}
-%                 \STATE Add $((I_1, I_2, I_3, Q), \text{positive})$ to $\mathcal{D}_{\text{preference}}$
-%             \ELSE
-%                 \STATE Add $((I_1, I_2, I_3, Q), \text{negative})$ to $\mathcal{D}_{\text{preference}}$
-%             \ENDIF
+% \REQUIRE Raw benchmark $\mathcal{D}_{\text{raw}}$, anchor LVLMs $\{\mathcal{M}_1, \ldots, \mathcal{M}_K\}$, Proposer base model $\pi_{\text{ref}}$, DPO iterations $R$, DeepAgent turns $T$, validity threshold $\tau$
+% \ENSURE DeepBias Benchmark $\mathcal{D}_{\text{bench}}$
+% \STATE \textit{// Stage 1: Expansion via in-context few-shot generation}
+% \STATE Using $\pi_{\text{ref}}$ in few-shot mode with exemplars from $\mathcal{D}_{\text{raw}}$, synthesise $(P, Q)$ candidates until the target pool size is reached
+% \STATE Render each $P$ into a counterfactual image triplet $\{I_1, I_2, I_3\}$ via SDXL, yielding candidate pool $\mathcal{D}_{\text{cand}}$
+% \STATE $\pi_\theta \leftarrow \pi_{\text{ref}}$ \COMMENT{initialise Proposer without SFT}
+% \STATE \textit{// Stage 2: Adversarial evolution via ensemble DPO}
+% \FOR{$r = 1$ to $R$}
+%     \STATE $\mathcal{B} \leftarrow \pi_\theta(\text{few-shot exemplars from } \mathcal{D}_{\text{cand}})$
+%     \STATE $\mathcal{D}_{\text{pref}} \leftarrow \emptyset$
+%     \FOR{each candidate $x = (I_1, I_2, I_3, Q) \in \mathcal{B}$}
+%         \FOR{each anchor $\mathcal{M}_k$}
+%             \STATE Query $\mathcal{M}_k$ on $(I_1,Q),(I_2,Q),(I_3,Q)$ to obtain $\{r_1^k, r_2^k, r_3^k\}$
+%             \STATE $b_k \leftarrow \mathbb{1}[\exists i: r_i^k \ne \text{Unknown}]$ \COMMENT{$\mathcal{M}_k$ elicited bias}
 %         \ENDFOR
+%         \IF{$\sum_k b_k \ge K/2$}
+%             \STATE Add $(x, \text{positive})$ to $\mathcal{D}_{\text{pref}}$
+%         \ELSIF{$\sum_k b_k = 0$}
+%             \STATE Add $(x, \text{negative})$ to $\mathcal{D}_{\text{pref}}$
+%         \ENDIF \COMMENT{middle-consensus candidates discarded}
 %     \ENDFOR
-%     \STATE Update $\pi_\theta$ via DPO on $\mathcal{D}_{\text{preference}}$ with reference $\pi_{\text{ref}}$
-%     \FOR{each sample $(I_1, I_2, I_3, Q) \in \mathcal{B}$} \COMMENT{DeepAgent probing after DPO}
-%         \STATE $\mathcal{H} \leftarrow \{(Q, \{r_1, r_2, r_3\})\}$
-%         \FOR{turn $t = 1$ to $3$}
-%             \STATE $Q_t \leftarrow \text{DeepAgent}(\mathcal{H})$ \COMMENT{Adaptive: deepen or rewrite}
-%             \STATE Query $\mathcal{M}_k$ with $(I_1, Q_t)$, $(I_2, Q_t)$, $(I_3, Q_t)$ to get $\{r_1^t, r_2^t, r_3^t\}$
-%             \STATE $\mathcal{H} \leftarrow \mathcal{H} \cup \{(Q_t, \{r_1^t, r_2^t, r_3^t\})\}$
-%         \ENDFOR
-%         \STATE Add best probing results to $\mathcal{D}_{\text{candidate}}$
-%     \ENDFOR
-%     \STATE $\mathcal{D}_{\text{benchmark}} \leftarrow \mathcal{D}_{\text{benchmark}} \cup \mathcal{D}_{\text{candidate}}$
+%     \STATE Update $\pi_\theta$ via DPO on $\mathcal{D}_{\text{pref}}$ with frozen reference $\pi_{\text{ref}}$
 % \ENDFOR
-% \RETURN $\mathcal{D}_{\text{benchmark}}$
+% \STATE \textit{// Stage 3: Instance-level probing by the DeepAgent}
+% \STATE $\mathcal{D}_{\text{probed}} \leftarrow \emptyset$
+% \FOR{each candidate $x = (I_1, I_2, I_3, Q)$ in the final Proposer batch}
+%     \STATE $\mathcal{H}_1 \leftarrow \{(Q, \{r_1^0, r_2^0, r_3^0\})\}$ \COMMENT{seeded with Stage-2 responses}
+%     \FOR{turn $t = 1$ to $T$}
+%         \IF{$\exists i: r_i^{t-1} \ne \text{Unknown}$}
+%             \STATE $Q_t \leftarrow \textsc{Deepen}(\mathcal{H}_t)$
+%         \ELSE
+%             \STATE $Q_t \leftarrow \textsc{Rewrite}(\mathcal{H}_t)$
+%         \ENDIF
+%         \STATE Query target(s) with $(I_1, Q_t), (I_2, Q_t), (I_3, Q_t)$ to obtain $\{r_1^t, r_2^t, r_3^t\}$
+%         \STATE $\mathcal{H}_{t+1} \leftarrow \mathcal{H}_t \cup \{(Q_t, \{r_1^t, r_2^t, r_3^t\})\}$
+%     \ENDFOR
+%     \STATE Add $(x, \mathcal{H}_{T+1})$ to $\mathcal{D}_{\text{probed}}$
+% \ENDFOR
+% \STATE \textit{// Stage 4: Validity check and assembly}
+% \STATE $\mathcal{D}_{\text{bench}} \leftarrow \emptyset$
+% \FOR{each $(x, \mathcal{H}_{T+1}) \in \mathcal{D}_{\text{probed}}$}
+%     \STATE $\rho(Q) \leftarrow \frac{1}{3K} \sum_{k=1}^{K} \sum_{i=1}^{3} \mathbb{1}[r_i^k = \text{Unknown}]$ \COMMENT{reuses Stage-2 anchor responses}
+%     \IF{$\rho(Q) > \tau$}
+%         \STATE Decompose $(I_1, I_2, I_3, Q)$ into $\{(I_i, Q, \mathcal{O})\}_{i=1}^{3}$ and add to $\mathcal{D}_{\text{bench}}$
+%     \ENDIF
+% \ENDFOR
+% \RETURN $\mathcal{D}_{\text{bench}}$
 % \end{algorithmic}
 % \end{algorithm}
 
 \section{Experiment}
+\label{sec:experiment}
 
+% TODO: 在 §5 开头（或 §5.1 开头）补一段 Implementation Details：显式说明 Proposer 实现为 Qwen3-32B~\cite{qwen3}；DeepAgent 实现模型；DPO 超参数 β、iterations R；DeepAgent turns T=3；LoRA 配置等。
 \subsection{Method Validation}
 
 % TODO: 实验一的数据尚未经过多模型投票验证（validation），数值需要在validation之后更新。
@@ -318,6 +353,7 @@ Qwen2.5-VL-7B & 13.35 & 13.90 & 15.95 & +2.60\\
 \label{tab:effectiveness}
 \end{table}
 
+% TODO: §4.1 方法侧已决定不做 SFT，下一句"Starting from the SFT-initialized Proposer"与之矛盾；须改为"Starting from the base Proposer (before any DPO)"或类似表述。Table~\ref{tab:effectiveness} 的 caption 中"SFT-initialized"同理需要更新。
 To validate the effectiveness of the Proposer's DPO-driven evolution, we conduct an experiment focusing on the Age category across three target models: InternVL3-8B, LLaVA-1.5-13B, and Qwen2.5-VL-7B. Starting from the SFT-initialized Proposer, we execute two rounds of DPO optimization and report the bias elicitation rate in Table~\ref{tab:effectiveness}. This experiment isolates the contribution of the Proposer's iterative optimization, without any DeepAgent probing.
 
 Across all three target models, the bias elicitation rate progressively increases with each DPO iteration. LLaVA-1.5-13B exhibits the most pronounced improvement, rising from $15.75\%$ to $24.40\%$, a total gain of $8.65$ percentage points. InternVL3-8B follows with an increase from $8.70\%$ to $13.80\%$ ($+5.10$ pp). These results provide direct empirical evidence that the DPO optimization loop successfully drives the Proposer to generate increasingly challenging test cases that align with each target model's specific vulnerabilities.
