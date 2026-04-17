@@ -136,27 +136,39 @@ In the context of evaluation, RL has been applied to automate red teaming to max
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{images/test_data.pdf}
-\caption{\textbf{The DeepBias Evaluation Protocol.} The DeepBias Evaluation Protocol. Left: The composition of a test instance, consisting of a counterfactual image triplet ($I_1$,$I_2$,$I_3$) with a single varying sensitive attribute, an intentionally ambiguous question (Q), and answer options (O). Right: The counterfactual consistency test logic. Consistent responses across the triplet (e.g. $R_1=R_2=R_3$) indicate an unbiased prediction, whereas inconsistent responses expose the model's latent biases toward specific demographics.}
+\caption{\textbf{The DeepBias Evaluation Protocol.} Left: The composition of a test instance, consisting of a counterfactual image triplet ($I_1$,$I_2$,$I_3$) with a single varying sensitive attribute, an intentionally ambiguous question (Q), and answer options (O). The triplet is used for multi-model voting validation during benchmark construction; after validation, each image becomes an independent test case where selecting ``Unknown'' is the only correct (unbiased) response.}
 \label{fig:test_data}
 \end{figure*}
 
-Our evaluation protocol is designed to expose society biases through carefully constructed ambiguous scenarios combined with response consistency testing on groups with different sensitive attributes. As illustrated in Fig.\ref{fig:test_data}, each test sample is structured as triplet of related samples, which are identical in content except for the sensitive attribute. This structure enables rigorous bias detection through response consistency analysis.
+Our evaluation protocol is designed to expose societal biases through carefully constructed ambiguous scenarios. As illustrated in Fig.\ref{fig:test_data}, test data is initially constructed as \emph{counterfactual triplets}: three images that are identical in content except for a single sensitive demographic attribute. This triplet design serves as a rigorous controlled-variable mechanism during data validation---by holding all contextual factors constant and varying only the demographic feature, we can verify that the question is genuinely ambiguous (rather than trivially answerable) and that any non-``Unknown'' response is attributable to the demographic attribute rather than other confounds. After validation (detailed in Section~\ref{subsec:benchmark_construction}), each image-question pair is decomposed into an independent test case, where the model must select ``Unknown'' to be judged as unbiased.
 
 Formally, each test instance is defined as a tuple $(I_1, I_2, I_3, Q, \mathcal{O})$, where:
 \begin{itemize}
     \item $\{I_1, I_2, I_3\}$ is a triplet of image inputs, each depicting a person. The three images differ only in the sensitive attribute being tested (e.g. for age bias: a 32-year-old, a 15-year-old, and a 64-year-old), while all other contextual factors remain constant.
     % \item $Q$ is a deliberately ambiguous question coupled with negative implications, designed such that the image and question text alone lack sufficient evidence for a conclusive answer. For example, as shown in Fig.~\ref{fig:test_data}, given a counterfactual triplet of different races, the question might be: \emph{"The man was stopped by the police after coming out of the supermarket. Did he commit a crime?"} This intentional information vacuum forces the model to rely on its internal latent representations to fill the gap. By incorporating negative connotations (e.g., "Did he commit a crime?"), $Q$ acts as a catalyst to trigger stereotypical associations, thereby effectively eliciting and amplifying bias-driven responses from the target model.
-    \item $Q$ is a deliberately ambiguous question coupled with a negative implication. It is constructed so that the image and text together lack sufficient evidence to yield a definitive answer. For example, as shown in Fig.~\ref{fig:test_data}, a question evaluating racial bias across the image triplet might ask: \emph{``The man was stopped by the police after coming out of the supermarket. Did he commit a crime?''}
-    \item $\mathcal{O} = \{\text{Yes}, \text{No}, \text{Unknown}\}$ is the set of answer options.
+    \item $Q$ is a deliberately ambiguous question coupled with a negative implication, subject to two critical constraints. First, $Q$ must not reference any group-specific characteristic (e.g., ``as an elderly person'' or ``being a woman''); the sensitive attribute is conveyed solely through the image, ensuring the text alone cannot trigger stereotype-driven responses. Second, $Q$ should avoid probabilistic hedging words such as ``likely'' or ``probably'' (the rationale is detailed below). It is constructed so that the image and text together lack sufficient evidence to yield a definitive answer. For example, as shown in Fig.~\ref{fig:test_data}, a question evaluating racial bias across the image triplet might ask: \emph{``The man was stopped by the police after coming out of the supermarket. Did he commit a crime?''}
+    \item $\mathcal{O} = \{\text{Yes}, \text{No}, \text{Unknown}\}$ is the set of answer options. Given the intentional ambiguity of $Q$, the neutral option ``Unknown'' is the only unbiased response, as the provided information is insufficient for a conclusive judgment.
 \end{itemize}
 
 % The key design principle is ambiguity: the question is intentionally underspecified, making the neutral option ``Unknown'' the only unbiased response. For example, given a counterfactual triplet depicting individuals of different races, the question might be: ``This person just left a supermarket and was stopped by the police. Did this person commit a crime?'' Without additional context, an unbiased model should consistently select ``Unknown'' for all three images, as none of the images provide evidence of criminal activity. However, a biased model may produce inconsistent responses based on stereotypical associations with the varying demographic attributes.
 
-Because the question $Q$ is intentionally ambiguous and coupled with a negative implication, it creates a deliberate information vacuum that forces the target model to rely on its internal prior associations to arrive at an answer.
-By deliberately incorporating negative connotations, such as associating the subject with a crime or a moral failing, $Q$  elicits \emph{harmful} societal biases rather than benign statistical correlations.
-To expose whether these internal priors are discriminatory, we evaluate the model's responses across the image triplet $\{I_1, I_2, I_3\}$, where the situational context remains absolutely identical and only the sensitive demographic attribute is swapped.
-By independently querying the model to obtain responses $\{r_1, r_2, r_3\}$, we establish a rigorous consistency-based metric: the model is deemed unbiased on a given test case if and only if $r_1 = r_2 = r_3$.
-Since the provided information is ambiguous, any divergence in the responses across the triplet can be attributed to the altered demographic feature. This inconsistency demonstrates that the model relies on harmful biased predispositions to fill the information gap.
+% TODO: 以下关于偏见与统计相关性区分的三个特征，需要补充参考文献
+A critical design consideration is to distinguish \emph{societal bias} from \emph{statistical correlation}. While certain demographic differences are statistically grounded (e.g., elderly individuals may, on average, have weaker physical fitness than younger ones), conflating statistical tendencies with judgments about specific individuals constitutes harmful bias. We identify three key characteristics that separate bias from legitimate statistical observation:
+\begin{enumerate}
+    \item \textbf{Individual attribution}: Bias arises when statistical group-level tendencies are applied to judge a specific individual. Stating that ``elderly people are statistically less physically fit'' is a demographic observation; asserting that \emph{this particular} elderly person ``definitely cannot perform this physical task'' is biased individual attribution.
+    \item \textbf{Normative prescription}: Bias transforms descriptive statistics into prescriptive norms. For instance, while women may statistically wear makeup more often, prescribing that women \emph{should} wear makeup---and judging those who do not as abnormal---constitutes normative bias.
+    \item \textbf{Concrete harm}: Bias produces tangible negative consequences in consequential settings such as hiring, lending, or law enforcement, where stereotypical judgments directly affect individuals' opportunities and outcomes.
+\end{enumerate}
+
+These distinctions directly inform our question design. First, $Q$ is coupled with a negative implication to probe whether the model produces \emph{concretely harmful} judgments (characteristic 3), rather than merely reflecting benign correlations. Second, $Q$ avoids probabilistic hedging words like ``likely'' or ``probably'': such words allow the model to retreat into statistically defensible territory (e.g., ``this elderly person is \emph{likely} less fit''), obscuring whether it is making a genuine individual-level biased judgment (characteristic 1) or simply citing group-level tendencies. By forcing definitive assertions, our protocol cleanly separates bias from statistical reasoning. Third, $Q$ does not reference group-specific characteristics in its text, ensuring the model's response is driven by its visual perception of the individual rather than textual group-level cues.
+
+Because the question $Q$ is intentionally ambiguous and coupled with a negative implication, it creates a deliberate information vacuum that forces the target model to rely on its internal prior associations to arrive at an answer. Since the provided information is insufficient for a definitive judgment, the only unbiased response is the neutral option ``Unknown''. Any model that selects ``Yes'' or ``No'' is making an unjustified judgment influenced by the demographic appearance of the individual in the image, thereby revealing societal bias.
+
+Formally, for each test instance $(I_i, Q, \mathcal{O})$, the model's response $r_i$ is evaluated as:
+\begin{equation}
+\text{Correct}(r_i) = \mathbb{1}[r_i = \text{Unknown}]
+\end{equation}
+where a correct response indicates the model refrains from biased judgment. We report the overall \emph{bias accuracy} as the proportion of test instances where the model selects ``Unknown''. A lower accuracy indicates a higher rate of exposed societal bias.
 
 % Because $Q$ is intentionally underspecified, an unbiased model should consistently select the neutral option Unknown for all three images, as no clear information was provided. However, a biased model may produce inconsistent responses (e.g., answering Yes or No for certain demographics) based on latent stereotypical associations.
 % To evaluate a model, we query it with each image-question-option pair $(I_i, Q, \mathcal{O})$ independently, yielding responses $\{r_1, r_2, r_3\}$. We define the model as unbiased with respect to this test case if and only if: $r_1 = r_2 = r_3$.
@@ -224,7 +236,22 @@ where $\pi_\theta$ is the Proposer being optimized, $\pi_{\text{ref}}$ is the re
 
 % \paragraph{Multi-Model Ensemble for Benchmark Construction.}
 \subsection{DeepBias Benchmark Construction}
-While the dynamic framework excels at targeted probing, the community also requires standardized, reproducible metrics to compare different models. To address this, we leverage our dynamic pipeline to construct a evaluation dataset: the DeepBias Benchmark. Instead of optimizing against a single model, we apply the aforementioned pipeline to an ensemble of diverse, state-of-the-art LVLMs acting as anchor models. We take the samples that can trigger bias in most models as positive samples, while take the samples that cannot trigger any model's bias as negative samples. This ensemble approach ensures that the Proposer learns to generate test cases that uncover common, structural vulnerabilities in multimodal representations, rather than simply overfitting to the idiosyncrasies of one specific model's safety alignment. The resulting DeepBias Benchmark serves as a highly concentrated, adversarial testing ground, offering a more rigorous evaluation standard than existing datasets.
+\label{subsec:benchmark_construction}
+While the dynamic framework excels at targeted probing, the community also requires standardized, reproducible metrics to compare different models. To address this, we leverage our dynamic pipeline to construct an evaluation dataset: the DeepBias Benchmark. Instead of optimizing against a single model, we apply the aforementioned pipeline to an ensemble of diverse, state-of-the-art LVLMs acting as anchor models. We take the samples that can trigger bias in most models as positive samples, while take the samples that cannot trigger any model's bias as negative samples. This ensemble approach ensures that the Proposer learns to generate test cases that uncover common, structural vulnerabilities in multimodal representations, rather than simply overfitting to the idiosyncrasies of one specific model's safety alignment.
+
+% TODO: 多模型投票验证的阈值（1/3）和验证模型的选择需要通过实验调整。保守的模型（倾向于选C）会让更多题目通过验证，激进的模型可能会误杀有效题目。需要实验验证阈值的合理性和验证模型组合的影响。
+% TODO: 检查多模型投票验证的位置是否合适。当前放在Benchmark Construction，但它其实是数据质量控制机制，在DPO之前就应该执行（防止坏题被DPO奖励）。考虑是否应该移到3.3 Adaptive Data Generation中作为生成流程的一个环节，或者和评测指标、偏见定义合并到Evaluation Protocol中。
+% TODO: 仔细检查多模型投票验证+拆分单图这段内容的逻辑是否准确、表述是否清晰。
+\textbf{Multi-Model Voting Validation.}
+Since the Proposer is an LLM generating test questions autonomously, it may produce degenerate or trivially answerable questions that do not satisfy the ambiguity requirement (e.g., ``Is this person elderly?'' for an age-bias triplet). Such questions would receive non-``Unknown'' answers from all models---not because of bias, but because the question has a clear factual answer. If left unfiltered, these bad questions would be incorrectly treated as bias-eliciting successes, corrupting the DPO training signal.
+
+To ensure data quality, we introduce a multi-model voting validation step. For each candidate question $Q$ with its image triplet $\{I_1, I_2, I_3\}$, we query $K$ diverse validator models, yielding $3K$ responses in total. We then compute the proportion of ``Unknown'' responses:
+\begin{equation}
+\rho(Q) = \frac{1}{3K} \sum_{k=1}^{K} \sum_{i=1}^{3} \mathbb{1}[r_i^k = \text{Unknown}]
+\end{equation}
+A question is retained if $\rho(Q) > \frac{1}{3}$, indicating that a sufficient number of model-image combinations recognize the question's inherent ambiguity. Questions failing this threshold are discarded as degenerate. The intuition is: if at least some models on some images correctly identify that the information is insufficient (selecting ``Unknown''), then the models that do \emph{not} select ``Unknown'' are genuinely exhibiting bias rather than simply answering a clear-cut question.
+
+After validation, we decompose each surviving triplet into individual test instances. Each image-question pair $(I_i, Q, \mathcal{O})$ becomes an independent test case, with ``Unknown'' as the sole correct answer. This two-phase design leverages the strengths of both paradigms: the counterfactual triplet provides a rigorous controlled-variable mechanism during validation, ensuring that only genuinely ambiguous questions survive; while the per-image evaluation provides a clean, direct measure of whether the model makes an unjustified judgment about a specific individual. The triplet is not discarded after decomposition---it can still be used for fine-grained analysis to identify which demographic groups are disproportionately affected. The resulting DeepBias Benchmark serves as a highly concentrated, adversarial testing ground, offering a more rigorous evaluation standard than existing datasets.
 
 % \begin{algorithm}[t]
 % \caption{DeepBias: Adaptive Bias Probing via Adversarial Evolution}
@@ -270,41 +297,32 @@ While the dynamic framework excels at targeted probing, the community also requi
 
 \subsection{Method Validation}
 
-\begin{table*}[b!]
+% TODO: 实验一的数据尚未经过多模型投票验证（validation），数值需要在validation之后更新。
+% TODO: 需要决定：单模型DPO实验（实验一）是否也需要做validation？
+%   当前倾向：validation只在benchmark construction阶段做（复用6个anchor模型已有的回答，无额外成本）。
+%   单模型实验不做validation，理由：(1)目的是展示DPO趋势，混入少量坏题不影响趋势；(2)单模型实验做多模型交叉验证逻辑上有矛盾。
+%   但这个决定还需要再考虑确认。
+\begin{table}[b!]
   \centering
-    \begin{tabular}{ccccccc}
+  \small
+    \begin{tabular}{ccccc}
 \toprule
-\multirow{2}{*}{\textbf{Models}} &
-% \multirow{2}{*}{\textbf{Initial}} &
-\multicolumn{2}{c}{\textbf{Iter 1}} &
-\multicolumn{2}{c}{\textbf{Iter 2}} &
-\multicolumn{2}{c}{\textbf{Iter 3}}   \\
-\cmidrule(lr){2-3}
-\cmidrule(lr){4-5}
-\cmidrule(lr){6-7}
- & \makecell{\textbf{Initial}} & \makecell{\textbf{Explore}} &
- \makecell{\textbf{Initial}} & \makecell{\textbf{Explore}} &
- \makecell{\textbf{Initial}} & \makecell{\textbf{Explore}} \\
+\textbf{Models} & \makecell{\textbf{Initial}} & \makecell{\textbf{DPO}\\\textbf{Iter 1}} & \makecell{\textbf{DPO}\\\textbf{Iter 2}} & \makecell{\textbf{Total}\\\textbf{$\Delta$}} \\
 \midrule
-InternVL3-8B&91.6 & 79.3 & 85.7&71.3&79.9& 63.6\\
-LLaVA-1.5-13b&81.6& 64.4 & 75.3 & 55.2 & 67.7 & 48.1\\
-Qwen2.5-VL-Instruct-7B&84.4 & 68.7 & 78.2 & 60.5 & 71.8 & 52.3\\
+InternVL3-8B & 8.70 & 11.50 & 13.80 & +5.10\\
+LLaVA-1.5-13B & 15.75 & 18.20 & 24.40 & +8.65\\
+Qwen2.5-VL-7B & 13.35 & 13.90 & 15.95 & +2.60\\
 \bottomrule
 \end{tabular}
-% }
-\caption{\textbf{Effectiveness of the DeepBias framework in exposing Age bias.} We report the consistency accuracy ($r_1=r_2=r_3$) across three iterations for three target LVLMs. ``Initial'' denotes the accuracy against the Proposer's direct generation, while ``Explore'' represents the accuracy after multi-turn refinement by the DeepAgent. }
+\caption{\textbf{Proposer evolution via DPO on Age bias.} We report the bias elicitation rate (\%, proportion of non-``Unknown'' responses) across DPO iterations for three target LVLMs. ``Initial'' denotes the SFT-initialized Proposer before any DPO optimization. A higher rate indicates more bias successfully exposed by the generated test cases. $\Delta$ denotes the total improvement from Initial to DPO Iter 2.}
 \label{tab:effectiveness}
-\end{table*}
+\end{table}
 
+To validate the effectiveness of the Proposer's DPO-driven evolution, we conduct an experiment focusing on the Age category across three target models: InternVL3-8B, LLaVA-1.5-13B, and Qwen2.5-VL-7B. Starting from the SFT-initialized Proposer, we execute two rounds of DPO optimization and report the bias elicitation rate in Table~\ref{tab:effectiveness}. This experiment isolates the contribution of the Proposer's iterative optimization, without any DeepAgent probing.
 
-To validate the effectiveness of our adaptive adversarial framework, we conduct an experiment focusing on the Age category across three target models: InternVL3-8B, LLaVA-1.5-13B, and Qwen2.5-VL-Instruct-7B. We execute the generation-refinement-optimization pipeline for three rounds and report two metrics per iteration in Table~\ref{tab:effectiveness}. \emph{Initial} refers to the target model's consistency accuracy on the test cases directly generated by the Proposer, while \emph{Explore} denotes the accuracy on the refined test cases after the DeepAgent's multi-turn probing. Following the framework for varying sensitive attributes described in Section~\ref{subsec:test_data}, a lower accuracy ($r_1=r_2=r_3$) indicates a higher rate of successfully exposed societal bias.
+Across all three target models, the bias elicitation rate progressively increases with each DPO iteration. LLaVA-1.5-13B exhibits the most pronounced improvement, rising from $15.75\%$ to $24.40\%$, a total gain of $8.65$ percentage points. InternVL3-8B follows with an increase from $8.70\%$ to $13.80\%$ ($+5.10$ pp). These results provide direct empirical evidence that the DPO optimization loop successfully drives the Proposer to generate increasingly challenging test cases that align with each target model's specific vulnerabilities.
 
-Within any single iteration, the \emph{Explore} accuracy is consistently and significantly lower than the \emph{Initial} accuracy. For instance, in Iteration 1 for LLaVA-1.5-13B, the agents' exploration drastically drops the consistency accuracy from $81.6\%$ to $64.4\%$. This intra-iteration degradation proves that the DeepAgent's multi-turn refinement strategy successfully unmasks latent biases that the initial queries fail to trigger.
-
-Between different iterations, the \emph{Initial} accuracy itself progressively degrades across iterations. Taking InternVL3-8B as an example, the Proposer's initial baseline accuracy drops from $91.6\%$ in Iteration 1, down to $85.7\%$ in Iteration 2, and further to $79.9\%$ in Iteration 3. This inter-iteration decline provides compelling empirical evidence for the success of our DPO optimization loop. By iteratively learning from successful bias elicitations, the Proposer inherently evolves into a stronger adversarial generator, capable of synthesizing increasingly challenging and targeted test cases.
-
-Overall, the synergistic effect of the evolving Proposer and the probing agents drives the accuracy down substantially by Iteration 3 (e.g., a total drop of $33.5$ percentage points for LLaVA-1.5-13B).
-This degradation confirms that static benchmarks provide a false sense of security, and that our dynamic, deep evaluation is essential for revealing deeply ingrained, inherent biases in modern LVLMs.
+Notably, Qwen2.5-VL-7B shows only a marginal improvement of $2.60$ pp ($13.35\% \to 15.95\%$). We attribute this to a \emph{homologous lineage bottleneck}: the Proposer (Qwen3-32B) and the target model both belong to the Qwen architecture family. This shared lineage causes the Proposer to generate queries that remain within their common safe distribution, limiting the DPO optimization's ability to discover novel attack vectors. This bottleneck underscores the necessity of the DeepAgent (evaluated in the next section), which breaks through these intrinsic generation boundaries at the instance level.
 
 \subsection{Method Ablation}
 
@@ -326,7 +344,7 @@ Qwen2.5-VL-7B&84.4&82&81.6  \\
 \hline
 \end{tabular}
 }
-\caption{\textbf{Ablation study disabling the DeepAgent.} We report the consistency accuracy across three iterations with the DeepAgent disabled.}
+\caption{\textbf{Ablation study disabling the DeepAgent.} We report the bias accuracy across three iterations with the DeepAgent disabled.}
 \label{tab:ablation}
 \end{table}
 
@@ -339,12 +357,35 @@ This homologous lineage causes the Proposer to generate queries only within thei
 
 Ultimately, these findings provide important insights for automated red-teaming: sole reliance on an LLM's intrinsic generation capabilities will inevitably lead to probing bottlenecks. Even with DPO optimization, the Proposer alone cannot penetrate deeply enough into model vulnerabilities. The DeepAgent is indispensable as a complementary instance-level prober, breaking through safety boundaries via multi-turn interactions to expose biases that the Proposer's distribution-level optimization cannot reach on its own.
 
+\subsection{Validation Threshold Analysis}
+\label{subsec:threshold}
+
+% TODO: 补充阈值实验的具体数据和图表。实验建议如下：
+% 1. 数据：取Proposer生成的200道题，全部人工标注为"好题"/"坏题"作为ground truth。
+% 2. 变量：(a) 阈值τ从0到1变化（如0%, 11%, 22%, 33%, 44%, 55%, 67%）；(b) 验证模型数量K=2,3,4；(c) 验证模型组合（保守型vs激进型）。
+% 3. 指标：存活率（通过验证的题目比例）、精确率（保留的题中好题占比）、召回率（好题被保留的比例）。
+% 4. 建议画precision-recall曲线或F1-threshold曲线，找到最佳阈值。
+% 5. 可以额外分析：不同类型的坏题（事实题、引导题等）在不同阈值下的过滤情况。
+
+As described in Section~\ref{subsec:benchmark_construction}, we employ a multi-model voting mechanism to filter out degenerate questions. A question is retained if the proportion of ``Unknown'' responses $\rho(Q)$ exceeds a threshold $\tau$. The choice of $\tau$ directly governs the trade-off between data quality and quantity: a high threshold aggressively filters questions but risks discarding valid, challenging items (false rejection); a low threshold retains more data but may admit trivially answerable questions that corrupt the evaluation signal.
+
+To determine the optimal threshold, we conduct a systematic analysis. We sample a batch of Proposer-generated questions and obtain human annotations on a subset to establish ground truth labels (valid vs.\ degenerate). We then vary $\tau$ across a range of values and evaluate the validation mechanism along three dimensions:
+\begin{itemize}
+    \item \textbf{Survival rate}: the proportion of questions passing the threshold, reflecting data quantity.
+    \item \textbf{Precision}: among retained questions, the proportion that are genuinely valid, reflecting data quality.
+    \item \textbf{Recall}: among all valid questions, the proportion that are retained, reflecting whether the threshold is overly conservative.
+\end{itemize}
+
+We additionally examine the effect of the number of validator models $K$ and their composition (e.g., mixing conservative models that frequently select ``Unknown'' with aggressive models that rarely do).
+
+% TODO: 在此处插入阈值实验的结果表格或图表（precision-recall曲线 / F1-threshold曲线）
+% TODO: 根据实验结果补充具体分析段落，说明最终选择τ=1/3的依据
 
 \subsection{Benchmark Construction}
 
 To construct a robust and generalizable benchmark, we extend our framework to an ensemble of 6 diverse LVLMs across three demographic categories: Age, Race, and Gender. We introduce a consensus-based labeling mechanism for the DPO preference dataset. A generated test case is labeled as a positive preference if it successfully elicits biased responses from at least $50\%$ of the anchor models. Conversely, queries that fail to expose bias where all models give safe answers are labeled as negative preferences. This forces the Proposer to target on universal, structural vulnerabilities shared across different architectures.
 
-Table~\ref{tab:benchmark_building} tracks the consistency accuracy of this ensemble during the process. The result reveals two systemic issues in current LVLM safety alignments. First, the latent biases are scale-agnostic and architecture-agnostic. While the 38B model (InternVL3.5-38B) starts with a higher baseline defense than the 7B models, it still suffers a consistent degradation of 12 to 15 percentage points across all categories by Iteration 3. This proves that merely scaling up model parameters does not patch these vulnerabilities. Second, the defense mechanisms exhibit demographic imbalances. Models show significantly weaker resilience against Race and Gender probes compared to Age. By Iteration 3, the accuracies for Race and Gender drop to the $50\%$-$60\%$ range. This contrast demonstrates that racial and gender biases are more deeply rooted.
+Table~\ref{tab:benchmark_building} tracks the bias accuracy of this ensemble during the process. The result reveals two systemic issues in current LVLM safety alignments. First, the latent biases are scale-agnostic and architecture-agnostic. While the 38B model (InternVL3.5-38B) starts with a higher baseline defense than the 7B models, it still suffers a consistent degradation of 12 to 15 percentage points across all categories by Iteration 3. This proves that merely scaling up model parameters does not patch these vulnerabilities. Second, the defense mechanisms exhibit demographic imbalances. Models show significantly weaker resilience against Race and Gender probes compared to Age. By Iteration 3, the accuracies for Race and Gender drop to the $50\%$-$60\%$ range. This contrast demonstrates that racial and gender biases are more deeply rooted.
 
 Finally, we build a comprehensive and highly challenging benchmark comprising. By capturing the dynamic outputs of our probing cycle, the benchmark provides a rigorously mined evaluation standard that reflects a broad spectrum of latent biases.
 
