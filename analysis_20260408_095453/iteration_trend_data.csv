@@ -1,0 +1,2 @@
+,model,iter,vocab_size,distinct_2,unique_instruction_ratio,mean_pairwise_cosine_sim,mean_centroid_distance,self_bleu_mean,effective_topic_count,topic_entropy
+initial,_base,0,1219,0.12409281406521516,0.844,0.4181503653526306,0.35245537757873535,0.9031723174267339,48.845413,3.88866

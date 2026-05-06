@@ -1,0 +1,8 @@
+group,source_file,text_count
+initial,/home/lianqi/ReverseGen/samples/age_initial/Age.json,2000
+intern1,/home/lianqi/ReverseGen/samples/analysedpo/intern/iter_opt_1.json,1000
+intern2,/home/lianqi/ReverseGen/samples/analysedpo/intern3/iter_opt_2.json,1000
+llava1,/home/lianqi/ReverseGen/samples/analysedpo/llava/iter_opt_1.json,1000
+llava2,/home/lianqi/ReverseGen/samples/analysedpo/llava/iter_opt_2.json,1000
+qwen1,/home/lianqi/ReverseGen/samples/analysedpo/qwen25/iter_opt_1.json,1000
+qwen2,/home/lianqi/ReverseGen/samples/analysedpo/qwen25/iter_opt_2.json,1000
