@@ -657,35 +657,35 @@ Three patterns emerge from Table~\ref{tab:cross_benchmark}. First, \emph{DeepBia
 \begin{table*}[h]
 \centering
 \scriptsize
-\renewcommand\arraystretch{1.1}
+\renewcommand\arraystretch{1.15}
 \resizebox{\linewidth}{!}{
-\begin{tabular}{lccc|ccc|ccc|c}
+\begin{tabular}{l|cccc|cccc|cccc}
 \hline
-\multirow{2}{*}{\textbf{Model}} & \multicolumn{3}{c|}{\textbf{DeepBias (Ours)}} & \multicolumn{3}{c|}{\textbf{SB-Bench~\cite{narnaware2025sbbench}}} & \multicolumn{3}{c|}{\textbf{VLBiasBench~\cite{wang2024vlbiasbench}}} & \textbf{Avg.} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
- & Age & Race & Gen.\ & Age & Race & Gen.\ & Age & Race & Gen.\ & (DB) \\
+\multirow{2}{*}{\textbf{Model}} & \multicolumn{4}{c|}{\textbf{DeepBias (Ours)}} & \multicolumn{4}{c|}{\textbf{SB-Bench~\cite{narnaware2025sbbench}}} & \multicolumn{4}{c}{\textbf{VLBiasBench~\cite{wang2024vlbiasbench}}} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}\cmidrule(lr){10-13}
+ & Age & Race & Gen.\ & \textbf{Avg.} & Age & Race & Gen.\ & \textbf{Avg.} & Age & Race & Gen.\ & \textbf{Avg.} \\
 \hline
-\multicolumn{11}{l}{\emph{Proprietary closed-source}} \\
-GPT-5~\cite{openai_gpt5}                & \cellcolor{green!30}\textbf{3.8} & \cellcolor{green!30}\textbf{4.3} & \cellcolor{green!30}\textbf{4.3} & 19.7 & 0.0 & 2.6 & 3.1 & 2.7 & 0.0 & \cellcolor{green!30}\textbf{4.1} \\
-Gemini-3-Flash-Preview~\cite{gemini3}   & \cellcolor{green!30}8.8         & \cellcolor{green!30}6.8         & \cellcolor{green!30}12.2        & 14.5 & 0.7 & 1.4 & 15.6 & 3.6 & 0.9 & \cellcolor{green!30}9.3 \\
+\multicolumn{13}{l}{\emph{Proprietary closed-source}} \\
+GPT-5~\cite{openai_gpt5}                & \cellcolor{green!30}\textbf{3.8} & \cellcolor{green!30}\textbf{4.3} & \cellcolor{green!30}\textbf{4.3} & \cellcolor{green!30}\textbf{4.1} & 19.7 & \textbf{0.0} & 2.6 & 7.5 & 3.1 & 2.7 & \textbf{0.0} & 1.9 \\
+Gemini-3-Flash-Preview~\cite{gemini3}   & \cellcolor{green!30}8.8         & \cellcolor{green!30}6.8         & \cellcolor{green!30}12.2        & \cellcolor{green!30}9.3        & 14.5 & 0.7 & \textbf{1.4} & \cellcolor{green!30}\textbf{5.5} & 15.6 & 3.6 & 0.9 & 6.7 \\
 \hline
-\multicolumn{11}{l}{\emph{Open-source hold-out}} \\
-Qwen3-VL-32B-Instruct~\cite{qwen3vl}    & \cellcolor{green!15}12.2        & \cellcolor{green!15}12.9        & \cellcolor{green!15}13.2        & 23.6 & 4.5 & 4.7 & 5.0 & 0.4 & 0.6 & \cellcolor{green!15}12.8 \\
-InternVL3-8B~\cite{internvl3}           & 28.1                            & 32.0                            & 28.8                            & 29.0 & 14.6 & 14.5 & 20.4 & 4.1 & 2.4 & 29.6 \\
-Pixtral-12B-2409~\cite{pixtral}         & 32.1                            & 35.9                            & 34.5                            & 57.0 & 29.7 & 18.0 & 31.3 & 14.0 & 19.6 & 34.2 \\
-LLaVA-1.5-13B~\cite{llava15}            & \cellcolor{red!30}76.4          & \cellcolor{red!30}79.7          & \cellcolor{red!30}80.5          & 87.2 & 58.3 & 31.2 & 71.8 & 55.5 & 57.8 & \cellcolor{red!30}78.9 \\
+\multicolumn{13}{l}{\emph{Open-source hold-out}} \\
+Qwen3-VL-32B-Instruct~\cite{qwen3vl}    & \cellcolor{green!15}12.2        & \cellcolor{green!15}12.9        & \cellcolor{green!15}13.2        & \cellcolor{green!15}12.8        & 23.6 & 4.5 & 4.7 & 10.9 & 5.0 & \textbf{0.4} & 0.6 & \cellcolor{green!30}\textbf{2.0} \\
+InternVL3-8B~\cite{internvl3}           & 28.1                            & 32.0                            & 28.8                            & 29.6                            & 29.0 & 14.6 & 14.5 & 19.4 & 20.4 & 4.1 & 2.4 & 8.9 \\
+Pixtral-12B-2409~\cite{pixtral}         & 32.1                            & 35.9                            & 34.5                            & 34.2                            & 57.0 & 29.7 & 18.0 & 34.9 & 31.3 & 14.0 & 19.6 & 21.6 \\
+LLaVA-1.5-13B~\cite{llava15}            & \cellcolor{red!30}76.4          & \cellcolor{red!30}79.7          & \cellcolor{red!30}80.5          & \cellcolor{red!30}78.9          & \cellcolor{red!30}87.2 & \cellcolor{red!30}58.3 & 31.2 & \cellcolor{red!30}58.9 & \cellcolor{red!30}71.8 & \cellcolor{red!30}55.5 & \cellcolor{red!30}57.8 & \cellcolor{red!30}61.7 \\
 \hline
-\multicolumn{11}{l}{\emph{Anchor models$^{\dagger}$ — DeepBias scores omitted for fairness}} \\
-GLM-4.1V-9B-Base~\cite{glm41v}          & \multicolumn{3}{c|}{\textit{(anchor — n/a)}} & 27.3 & 11.2 & 12.9 & 1.0 & 0.5 & 0.0 & \multicolumn{1}{c}{\textit{n/a}} \\
-Qwen3-VL-8B-Instruct~\cite{qwen3vl}     & \multicolumn{3}{c|}{\textit{(anchor — n/a)}} & 47.3 & 24.3 & 22.2 & 25.8 & 6.3 & 5.1 & \multicolumn{1}{c}{\textit{n/a}} \\
+\multicolumn{13}{l}{\emph{Anchor models$^{\dagger}$ — DeepBias scores omitted for fairness}} \\
+GLM-4.1V-9B-Base~\cite{glm41v}          & \multicolumn{4}{c|}{\textit{(anchor — n/a)}}                                  & 27.3 & 11.2 & 12.9 & 17.1 & \textbf{1.0} & 0.5 & \textbf{0.0} & \cellcolor{green!30}\textbf{0.5} \\
+Qwen3-VL-8B-Instruct~\cite{qwen3vl}     & \multicolumn{4}{c|}{\textit{(anchor — n/a)}}                                  & 47.3 & 24.3 & 22.2 & 31.2 & 25.8 & 6.3 & 5.1 & 12.4 \\
 \hline
-\multicolumn{11}{l}{\emph{Discriminative spread (max $-$ min within each suite)}} \\
-\textbf{LLaVA-1.5 $\rightarrow$ GPT-5}     & \multicolumn{3}{c|}{\cellcolor{green!30}\textbf{74.8\,pp}} & \multicolumn{3}{c|}{51.4\,pp} & \multicolumn{3}{c|}{36.2\,pp} & --- \\
-\textbf{LLaVA-1.5 $\rightarrow$ Qwen3-32B} & \multicolumn{3}{c|}{\cellcolor{green!30}\textbf{66.1\,pp}} & \multicolumn{3}{c|}{24.0\,pp} & \multicolumn{3}{c|}{35.9\,pp} & --- \\
-\textbf{Qwen3-32B $\rightarrow$ GPT-5}     & \multicolumn{3}{c|}{\cellcolor{green!30}\textbf{\phantom{0}8.7\,pp}} & \multicolumn{3}{c|}{\phantom{0}3.4\,pp} & \multicolumn{3}{c|}{\phantom{0}0.1\,pp} & --- \\
+\multicolumn{13}{l}{\emph{Discriminative spread (max $-$ min within each suite, lower box = harder for top models)}} \\
+LLaVA-1.5 $\rightarrow$ GPT-5     & \multicolumn{4}{c|}{\cellcolor{green!30}\textbf{74.8\,pp}}    & \multicolumn{4}{c|}{51.4\,pp}                               & \multicolumn{4}{c}{36.2\,pp} \\
+LLaVA-1.5 $\rightarrow$ Qwen3-32B & \multicolumn{4}{c|}{\cellcolor{green!30}\textbf{66.1\,pp}}    & \multicolumn{4}{c|}{24.0\,pp}                               & \multicolumn{4}{c}{35.9\,pp} \\
+Qwen3-32B $\rightarrow$ GPT-5     & \multicolumn{4}{c|}{\cellcolor{green!30}\textbf{\phantom{0}8.7\,pp}} & \multicolumn{4}{c|}{\phantom{0}3.4\,pp}              & \multicolumn{4}{c}{\phantom{0}0.1\,pp} \\
 \hline
 \end{tabular}}
-\caption{\textbf{Cross-benchmark bias rate (\%; lower is better)} for eight LVLMs evaluated under identical prompting and decoding rules on DeepBias, SB-Bench (real-image subset), and VLBiasBench (base subset), restricted to ambiguous Age / Race / Gender items. The bottom block summarises the discriminative spread within each suite. DeepBias consistently produces the largest spread and is the only suite for which the top open-source and top closed-source model differ by more than $1$~pp, while both static suites saturate. $^{\dagger}$Anchor models served as voting nodes during DeepBias pool curation; their DeepBias scores are partially fit to the released pool and are therefore omitted from this comparison, but the SB-Bench/VLBiasBench numbers carry no leakage and are included for completeness.}
+\caption{\textbf{Cross-benchmark bias rate (\%; lower is better)} for eight LVLMs evaluated under identical prompting and decoding rules on DeepBias, SB-Bench (real-image subset), and VLBiasBench (base subset), restricted to ambiguous Age / Race / Gender items. Per-suite Avg.\ columns enable direct comparison; the bottom block summarises the discriminative spread within each suite. \textbf{Bold} marks per-column best within each suite (lowest bias). Cell colour: \cellcolor{green!30}$\leq$10, \cellcolor{green!15}10--15, no fill 15--50, \cellcolor{red!30}$\geq$50. DeepBias consistently produces the largest spread and is the only suite for which the top open-source and top closed-source model differ by more than $1$~pp; both static suites saturate. $^{\dagger}$Anchor models served as voting nodes during DeepBias pool curation; their DeepBias scores are partially fit to the released pool and are therefore omitted, but their SB-Bench / VLBiasBench numbers carry no leakage and are reported for completeness.}
 \label{tab:cross_benchmark}
 \end{table*}
 
