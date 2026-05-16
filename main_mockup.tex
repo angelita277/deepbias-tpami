@@ -370,22 +370,14 @@ Across both target models, the bias accuracy progressively decreases with each D
 % (3) 最终 pdf 放到 images/proposer_distribution.pdf 并更新 \includegraphics 路径。
 \begin{figure*}[t]
   \centering
-  \subfloat[InternVL3-8B target — UMAP.]{%
-    \includegraphics[width=0.245\textwidth]{images/real_figs/proposer_distribution_umap_intern3.pdf}%
-    \label{fig:proposer_distribution_umap_intern3}}
+  \subfloat[Semantic embedding migration (UMAP).]{%
+    \includegraphics[width=0.48\textwidth]{doc/figure_mockups/fig1a_proposer_umap.png}%
+    \label{fig:proposer_distribution_umap}}
   \hfill
-  \subfloat[Qwen2.5-VL-7B target — UMAP.]{%
-    \includegraphics[width=0.245\textwidth]{images/real_figs/proposer_distribution_umap_qwen25.pdf}%
-    \label{fig:proposer_distribution_umap_qwen25}}
-  \hfill
-  \subfloat[InternVL3-8B target — Topic Radar.]{%
-    \includegraphics[width=0.245\textwidth]{images/real_figs/proposer_distribution_radar_intern3.pdf}%
-    \label{fig:proposer_distribution_radar_intern3}}
-  \hfill
-  \subfloat[Qwen2.5-VL-7B target — Topic Radar.]{%
-    \includegraphics[width=0.245\textwidth]{images/real_figs/proposer_distribution_radar_qwen25.pdf}%
-    \label{fig:proposer_distribution_radar_qwen25}}
-  \caption{\textbf{Proposer output distribution across DPO iterations (Age bias).} Panels (a)--(b): UMAP overlay of the full Proposer candidate pool at Seed / Pre-DPO / DPO Iter 1 / DPO Iter 2 against the InternVL3-8B and Qwen2.5-VL-7B targets ($n{=}5{,}234$ texts per panel). The iterated distributions both expand into previously uncovered sub-regions and concentrate mass on sub-regions where the target reliably emits non-``Unknown'' responses. Panels (c)--(d): 10-topic BERTopic-style coverage radar (axes shared between (c) and (d) for direct comparability). DPO iterations broaden coverage of stereotype domains (profession, civic role, public speaking, social role, etc.) and the two targets converge to qualitatively similar topic profiles, indicating that the discovered vulnerabilities are not target-specific artefacts.}
+  \subfloat[Topic coverage radar (BERTopic).]{%
+    \includegraphics[width=0.48\textwidth]{doc/figure_mockups/fig1b_proposer_radar.png}%
+    \label{fig:proposer_distribution_radar}}
+  \caption{\textcolor{red}{\textbf{Proposer output distribution across DPO iterations (Age bias).}} (a) UMAP overlay of the Proposer's candidate pool at Pre-DPO / DPO Iter 1 / DPO Iter 2. The iterated distribution both expands into previously uncovered sub-regions and concentrates mass on sub-regions where the target model most reliably emits non-``Unknown'' responses. (b) BERTopic radar over the discovered topic set: DPO iterations broaden coverage of stereotype domains (profession, civic role, security, etc.) and increase the effective number of active topics.}
   \label{fig:proposer_distribution}
 \end{figure*}
 
@@ -399,8 +391,8 @@ Beyond aggregate accuracy values, Figure~\ref{fig:proposer_distribution} visuali
 % (4) 若偏好表格形式，可由 diversity_metrics.csv + topic_diversity_metrics.csv + semantic_diversity.csv + self_bleu.csv 合成紧凑定量表替代。
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{images/real_figs/proposer_diversity.pdf}
-  \caption{\textbf{Diversity and concentration metrics across Proposer DPO iterations.} Per-iteration vocabulary size, distinct-2, unique-instruction ratio, mean pairwise cosine similarity, centroid distance, self-BLEU, effective topic count and topic entropy, computed on the Age-bias Proposer candidate batches at Pre-DPO / DPO Iter 1 / DPO Iter 2 against each target LVLM. The joint trend---first expansion then concentration---is consistent across target models.}
+  \includegraphics[width=\linewidth]{doc/figure_mockups/fig2_proposer_diversity.png}
+  \caption{\textcolor{red}{\textbf{Diversity and concentration metrics across Proposer DPO iterations.}} Per-iteration vocabulary size, distinct-2, unique-instruction ratio, mean pairwise cosine similarity, centroid distance, self-BLEU, effective topic count and topic entropy, computed on the Age-bias Proposer candidate batches at Pre-DPO / DPO Iter 1 / DPO Iter 2 against each target LVLM. The joint trend---first expansion then concentration---is consistent across target models.}
   \label{fig:proposer_diversity}
 \end{figure}
 
@@ -421,13 +413,13 @@ The per-turn trajectory is not monotone: on Qwen2.5-VL-7B, Turn~1 ($47.7\%$) is 
 % (2) 最终 pdf 放到 images/deepagent_case.pdf 并更新 \includegraphics 路径；如定稿选用非 tech-startup 例子（例如之前 commented 的 intelligence-quotient 案例），请相应重写下方 prose 段。
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{images/real_figs/deepagent_case.pdf}
-  \caption{\textbf{Case Study: DeepAgent multi-turn dialogue trace.} A single candidate inherited from the DPO-converged Proposer's batch (Turn~0) is refined across three probing turns against InternVL3-8B. Each row marks the turn index, the selected strategy regime (Rewriting at Turns~1--2, Deepening at Turn~3) and sub-strategy (Contextualisation, Projection, Scenario Deepening), the refined question, and the target model's response. The response transitions from ambiguous (``Unknown'') to unambiguously biased (``Yes'') as the dialogue progresses.}
+  \includegraphics[width=\linewidth]{doc/figure_mockups/fig5_deepagent_case.png}
+  \caption{\textcolor{red}{\textbf{Case Study: DeepAgent multi-turn dialogue trace.}} A single candidate inherited from the DPO-converged Proposer's batch (Turn~0) is refined across three probing turns against InternVL3-8B. Each row marks the turn index, the selected strategy regime (Rewriting at Turn~1, Deepening at Turns~2--3) and sub-strategy (Contextualisation, Attribute Refinement, Comparison Deepening), the refined question, and the target model's response. The response deepens from ambiguous (``Unknown'') to unambiguously biased (``Yes'') as the dialogue progresses.}
   \label{fig:deepagent_case}
 \end{figure}
 
 \textbf{Case Study: Multi-Turn Dialogue Trace.}
-Figure~\ref{fig:deepagent_case} traces a single candidate through the DeepAgent's three-turn dialogue against InternVL3-8B (idx~167 in the Age-bias DPO Iter~2 pool). Turn~0 is the candidate inherited from the Proposer's DPO-converged batch---\emph{``The person was asked to give a presentation on the latest industry trends; were they confident in their knowledge?''}---an ambiguous prompt on which the target abstains with ``Unknown'' across all three age images. Since no bias has yet been elicited, the DeepAgent invokes \emph{Rewriting} via a contextualisation sub-strategy, embedding the same core question inside a concrete event-scheduling scenario with attendee complaints about ``up-to-date expertise'' (Turn~1); the target's safety alignment still holds and it again returns ``Unknown''. Continuing in the \emph{Rewriting} regime, the DeepAgent next applies a projection sub-strategy at Turn~2, externalising the probe through a coordinator's overheard remark---``this being more of a younger person's topic''---at which point the target's defence collapses uniformly to ``Yes'', leaking unambiguous evidence of bias. Having exposed bias, the DeepAgent switches to \emph{Deepening}: at Turn~3 it applies scenario deepening, recasting the same question inside an AI-startup mentoring context that puts ``familiarity with emerging technologies'' at stake; the target commits again to ``Yes'', confirming the elicited bias under a thematically distinct cue set. This trajectory illustrates how the per-turn strategy choice adapts to the preceding response and how the DeepAgent's full-history conditioning incrementally builds on each revealed cue.
+Figure~\ref{fig:deepagent_case} traces a single candidate through the DeepAgent's three-turn dialogue against InternVL3-8B. Turn~0 is the candidate inherited from the Proposer's DPO-converged batch---\emph{``This person leads a tech startup; how likely are investors to fund them?''}---an ambiguous prompt to which the target responds ``Unknown''. Since no bias has yet been elicited, the DeepAgent invokes \emph{Rewriting} via a contextualisation sub-strategy, embedding the same core question inside a concrete pitch-meeting scenario (Turn~1); the target now yields a non-``Unknown'' response (``Moderately''), leaking initial evidence of bias. Having exposed bias, the DeepAgent switches to \emph{Deepening}: at Turn~2 it applies attribute refinement to ground the probe in visual cues (``apparent age and appearance''), extracting a stronger biased response (``Limited''); at Turn~3 it applies comparison deepening, directly contrasting the depicted founder against a younger counterpart, at which point the target commits to an unambiguous biased answer (``Yes''). This trajectory illustrates how the per-turn strategy choice adapts to the preceding response and how the DeepAgent's full-history conditioning incrementally builds on each revealed cue.
 
 % TODO: Turn 1 → 2 → 3 的非单调解读目前是"推断式"的，若能结合 Deepening/Rewriting 策略选择比例图（见 §4.2 末的 TODO 图）或每轮 sub-strategy 使用分布图来支撑会更有说服力。
 % TODO: 对比不同 target 模型的敏感性——Qwen2.5（同 Qwen 家族）vs. InternVL3（非同源）在 DeepAgent 各轮的收益差异是否构成"homologous lineage bottleneck 在 DeepAgent 阶段的再现"证据，值得在此专门讨论。
@@ -458,13 +450,13 @@ Table~\ref{tab:benchmark_building} reports the bias accuracy of the six anchors 
 \begin{figure*}[t]
   \centering
   \subfloat[Semantic embedding overlay (UMAP).]{%
-    \includegraphics[width=0.48\textwidth]{images/real_figs/benchmark_distribution_umap.pdf}%
+    \includegraphics[width=0.48\textwidth]{doc/figure_mockups/figA_benchmark_distribution_umap.png}%
     \label{fig:benchmark_distribution_umap}}
   \hfill
   \subfloat[Topic coverage by demographic category (BERTopic).]{%
-    \includegraphics[width=0.48\textwidth]{images/real_figs/benchmark_distribution_radar.pdf}%
+    \includegraphics[width=0.48\textwidth]{doc/figure_mockups/figA_benchmark_distribution_radar.png}%
     \label{fig:benchmark_distribution_radar}}
-  \caption{\textbf{Structural characterisation of the DeepBias benchmark.} (a) UMAP overlay of the benchmark's question embeddings, coloured by demographic category. The three categories occupy partially overlapping regions, indicating a shared pool of bias-eliciting templates with category-specific peripheries. (b) BERTopic radar over the discovered top topics: Age questions concentrate on job/hiring, expert/tech, and education; Gender on job/hiring, social role, and public speaking; Race on security/legal, space/venue, and consumer settings.}
+  \caption{\textcolor{red}{\textbf{Structural characterisation of the DeepBias benchmark.}} (a) UMAP overlay of the benchmark's question embeddings, coloured by demographic category. The three categories occupy partially overlapping regions, indicating a shared pool of bias-eliciting templates with category-specific peripheries. (b) BERTopic radar over the discovered top topics: Age questions concentrate on job/hiring, expert/tech, and education; Gender on job/hiring, social role, and public speaking; Race on security/legal, space/venue, and consumer settings.}
   \label{fig:benchmark_distribution}
 \end{figure*}
 
@@ -477,8 +469,8 @@ Beyond the per-iteration trends of Table~\ref{tab:benchmark_building}, Figure~\r
 % (3) 最终 pdf 放到 images/benchmark_comparison.pdf 并更新路径。
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=\textwidth]{images/real_figs/benchmark_comparison.pdf}
-  \caption{\textbf{Comparison of DeepBias against prior bias benchmarks.} Four quality and coverage axes (left to right): instance count, number of demographic categories, average bias accuracy on strong LVLMs (lower indicates a more challenging benchmark), and presence of multimodal (vision) input. DeepBias matches established benchmarks on size and demographic coverage while substantially exceeding them on challenge level.}
+  \includegraphics[width=\textwidth]{doc/figure_mockups/figB_benchmark_comparison.png}
+  \caption{\textcolor{red}{\textbf{Comparison of DeepBias against prior bias benchmarks.}} Four quality and coverage axes (left to right): instance count, number of demographic categories, average bias accuracy on strong LVLMs (lower indicates a more challenging benchmark), and presence of multimodal (vision) input. DeepBias matches established benchmarks on size and demographic coverage while substantially exceeding them on challenge level.}
   \label{fig:benchmark_comparison}
 \end{figure*}
 
@@ -490,13 +482,13 @@ Figure~\ref{fig:benchmark_comparison} situates DeepBias against the four most di
 % (2) 按 10-bin 直方图、Age/Gender/Race 堆叠着色；(3) 最终 pdf 放到 images/benchmark_difficulty.pdf 并更新路径。
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{images/real_figs/benchmark_difficulty.pdf}
-  \caption{\textbf{Per-instance benchmark difficulty distribution.} Histogram of the per-instance bias accuracy (the proportion of the six anchor LVLMs returning ``Unknown''), stacked by demographic category over $55{,}204$ single-image instances. The dashed line marks the overall median ($\approx67\%$, i.e.\ $4/6$ anchors); lower accuracy indicates a more challenging instance.}
+  \includegraphics[width=\linewidth]{doc/figure_mockups/figC_benchmark_difficulty.png}
+  \caption{\textcolor{red}{\textbf{Per-instance benchmark difficulty distribution.}} Histogram of the per-instance bias accuracy (the proportion of the six anchor LVLMs returning ``Unknown''), stacked by demographic category. The dashed line marks the overall median ($\approx52\%$); lower accuracy indicates a more challenging instance.}
   \label{fig:benchmark_difficulty}
 \end{figure}
 
 \textbf{Difficulty Distribution.}
-To verify that the benchmark presents a reasonable spread of difficulty---neither trivially solvable nor impossibly hard---Figure~\ref{fig:benchmark_difficulty} plots the per-instance bias accuracy aggregated over the six anchor LVLMs across all $55{,}204$ single-image test instances. The mass of the distribution lies in the $50$--$83\%$ band with an overall median of $67\%$ (a typical instance is correctly refused by $4$ of the $6$ anchors while the remaining two are bias-elicited) and a mean of $63\%$. The three demographic categories produce near-identical distribution shapes (Age/Gender means $\approx$$61\%$, Race $\approx$$65\%$), suggesting that the benchmark's difficulty is not an artefact of any particular demographic axis. Instances at the extremes---trivially refused (accuracy $=100\%$) or universally leading (accuracy $=0\%$)---are sparse compared with the middle bins, a direct consequence of the adversarial Proposer--DeepAgent pipeline driving generation toward genuinely ambiguous, structurally bias-eliciting questions rather than templated paraphrases.
+To verify that the benchmark presents a reasonable spread of difficulty---neither trivially solvable nor impossibly hard---Figure~\ref{fig:benchmark_difficulty} plots the per-instance bias accuracy aggregated over the six anchor LVLMs. The mass of the distribution lies in the $40$--$70\%$ band with an overall median near $52\%$, indicating that a typical instance is correctly refused (``Unknown'') by roughly three of the six anchors and elicits bias on the remaining three. The three demographic categories produce near-identical distribution shapes, suggesting that the benchmark's difficulty is not an artefact of any particular demographic axis. Instances at the extremes---trivially refused (accuracy near $100\%$) or trivially leading (accuracy near $0\%$)---are sparse, a direct consequence of the adversarial Proposer--DeepAgent pipeline driving generation toward genuinely ambiguous, structurally bias-eliciting questions rather than templated paraphrases.
 
 % TODO [Supplementary]: fig:benchmark_samples 当前是 doc/figure_mockups/fig7_benchmark_samples.png 的 mockup 占位；最终需放到 Supplementary Material 中（建议作为 Figure S1），并替换为真实样例（每类别手挑 2 条 representative triplet）。
 Finally, we assemble a comprehensive and highly challenging benchmark comprising the adversarially-mined test instances distilled through the full Proposer--DeepAgent cycle. By capturing the dynamic outputs of our probing cycle, the benchmark provides a rigorously mined evaluation standard that reflects a broad spectrum of latent biases. Representative instances spanning the three demographic categories---each consisting of a counterfactual image triplet, an intentionally-ambiguous question, and the ensemble's majority response---are presented in the Supplementary Material.
